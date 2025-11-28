@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SARAL - Citizen App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .animate-blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800 font-sans pb-20">
+
+    <!-- DISASTER OVERLAY -->
+    <div id="user-disaster-alert"
+        class="hidden fixed inset-0 z-[2000] flex flex-col items-center justify-center text-white p-6 text-center bg-red-600/95 backdrop-blur-sm">
+        <i class="fas fa-radiation text-7xl mb-4 animate-spin-slow text-yellow-300"></i>
+        <h1 class="text-4xl font-black uppercase mb-2 tracking-wider">EMERGENCY</h1>
+        <h2 id="user-alert-type" class="text-2xl font-bold mb-4 bg-black/30 px-4 py-2 rounded">ALERT RECEIVED</h2>
+        <p id="user-alert-msg" class="text-lg mb-8">Seek shelter immediately. Follow official instructions.</p>
+        <button onclick="dismissUserAlert()"
+            class="bg-white text-red-700 px-8 py-3 rounded-full font-bold text-lg shadow-xl hover:scale-105 transition">
+            I AM SAFE
+        </button>
+    </div>
+
+    <!-- NAVBAR -->
+    <nav class="bg-blue-900 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 p-2 rounded-lg">
+                    <i class="fas fa-shield-virus text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide" data-i18n="app_name">SARAL</h1>
+                    <p class="text-[10px] text-blue-200 uppercase" data-i18n="app_tagline">Resilient Aid Layer</p>
+                </div>
+            </div>
+            <div class="text-right flex items-center gap-3">
+                <select onchange="changeLanguage(this.value)"
+                    class="bg-blue-800 text-white text-xs p-1 rounded border border-blue-600 focus:outline-none">
+                    <option value="en">English</option>
+                    <option value="hi">हिंदी (Hindi)</option>
+                    <option value="mr">मराठी (Marathi)</option>
+                    <option value="bn">বাংলা (Bengali)</option>
+                </select>
+                <p class="text-xs font-mono bg-blue-800 px-2 py-1 rounded" id="user-id-display">ID: ...</p>
+            </div>
+        </div>
+    </nav>
+
+    <!-- STATUS BANNER -->
+    <div class="bg-green-600 text-white p-3 text-center font-bold text-sm shadow-md" id="status-banner">
+        <i class="fas fa-check-circle"></i> STATUS: SAFE
+    </div>
+
+    <div class="p-4 max-w-md lg:max-w-7xl mx-auto lg:grid lg:grid-cols-12 lg:gap-6 space-y-4 lg:space-y-0">
+
+        <!-- LEFT COLUMN: STATUS & CONTROLS -->
+        <div class="lg:col-span-3 space-y-4">
+            <!-- OFFLINE MESH TOGGLE -->
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gray-100 p-2 rounded-full text-gray-600" id="mesh-icon">
+                        <i class="fas fa-wifi"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-700" data-i18n="conn_mode">Connection Mode</h3>
+                        <p class="text-xs text-gray-500" id="mesh-status" data-i18n="conn_online">Online (Internet)</p>
+                    </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" value="" class="sr-only peer" onchange="toggleMeshMode(this)">
+                    <div
+                        class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                    </div>
+                </label>
+            </div>
+
+            <!-- HEALTH TRIAGE -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-user-md"></i> <span
+                        data-i18n="triage_title">Health Triage</span></h3>
+                <div class="flex gap-2">
+                    <button onclick="reportHealth('Minor')"
+                        class="flex-1 bg-green-100 text-green-800 py-2 rounded text-xs font-bold hover:bg-green-200">🟢
+                        <span data-i18n="btn_minor">Minor</span></button>
+                    <button onclick="reportHealth('Moderate')"
+                        class="flex-1 bg-yellow-100 text-yellow-800 py-2 rounded text-xs font-bold hover:bg-yellow-200">🟡
+                        <span data-i18n="btn_moderate">Moderate</span></button>
+                    <button onclick="reportHealth('Critical')"
+                        class="flex-1 bg-red-100 text-red-800 py-2 rounded text-xs font-bold hover:bg-red-200">🔴
+                        <span data-i18n="btn_critical">Critical</span></button>
+                </div>
+            </div>
+
+            <!-- PREPAREDNESS -->
+            <button onclick="document.getElementById('checklist-modal').classList.remove('hidden')"
+                class="w-full bg-gray-100 text-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 hover:bg-gray-200">
+                <i class="fas fa-clipboard-check text-2xl text-gray-600"></i>
+                <div class="text-left">
+                    <span class="font-bold text-sm block" data-i18n="checklist_title">Preparedness Checklist</span>
+                    <span class="text-xs text-gray-500" data-i18n="checklist_desc">Are you ready?</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- CENTER COLUMN: MAP & SOS -->
+        <div class="lg:col-span-6 space-y-4">
+            <!-- SAFE ROUTE MAP -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 h-[400px] flex flex-col">
+                <h3 class="font-bold text-gray-700 mb-2 flex justify-between shrink-0">
+                    <span><i class="fas fa-map-marked-alt"></i> <span data-i18n="safe_route_title">Safe
+                            Route</span></span>
+                    <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500" data-i18n="gps_active">GPS
+                        Active</span>
+                </h3>
+                <div id="map" class="rounded bg-gray-100 mb-2 flex-grow h-full"></div>
+                <button onclick="findSafeZone()"
+                    class="w-full bg-blue-600 text-white py-3 rounded font-bold text-sm shadow hover:bg-blue-700 shrink-0"
+                    data-i18n="nav_btn">
+                    NAVIGATE TO SAFE ZONE
+                </button>
+            </div>
+
+            <!-- SOS BUTTON -->
+            <button onclick="sendSOS()"
+                class="w-full bg-red-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-4 hover:bg-red-700">
+                <i class="fas fa-broadcast-tower text-3xl animate-pulse"></i>
+                <div class="text-left">
+                    <h2 class="text-xl font-black" data-i18n="sos_full_title">SOS EMERGENCY</h2>
+                    <p class="text-xs text-red-100" data-i18n="sos_full_desc">Broadcast Distress Signal</p>
+                </div>
+            </button>
+        </div>
+
+        <!-- RIGHT COLUMN: ACTIONS -->
+        <div class="lg:col-span-3 grid grid-cols-2 lg:grid-cols-1 gap-3 h-fit">
+            <!-- REPORT DAMAGE -->
+            <button onclick="document.getElementById('damage-modal').classList.remove('hidden')"
+                class="bg-orange-100 text-orange-800 p-4 rounded-xl shadow-sm border border-orange-200 flex flex-col lg:flex-row items-center gap-3 hover:bg-orange-200">
+                <i class="fas fa-house-damage text-2xl"></i>
+                <span class="font-bold text-xs lg:text-sm" data-i18n="btn_damage">Report Damage</span>
+            </button>
+
+            <!-- MISSING PERSONS -->
+            <button onclick="document.getElementById('lost-modal').classList.remove('hidden')"
+                class="bg-purple-100 text-purple-800 p-4 rounded-xl shadow-sm border border-purple-200 flex flex-col lg:flex-row items-center gap-3 hover:bg-purple-200">
+                <i class="fas fa-user-friends text-2xl"></i>
+                <span class="font-bold text-xs lg:text-sm" data-i18n="btn_missing">Find People</span>
+            </button>
+
+            <!-- VOLUNTEER -->
+            <button onclick="document.getElementById('volunteer-modal').classList.remove('hidden')"
+                class="bg-teal-100 text-teal-800 p-4 rounded-xl shadow-sm border border-teal-200 flex flex-col lg:flex-row items-center gap-3 hover:bg-teal-200">
+                <i class="fas fa-hands-helping text-2xl"></i>
+                <span class="font-bold text-xs lg:text-sm" data-i18n="btn_volunteer">Volunteer</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- DAMAGE REPORT MODAL -->
+    <div id="damage-modal"
+        class="hidden fixed inset-0 z-[1500] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl animate-fade-in">
+            <h2 class="text-xl font-bold mb-4 text-orange-700"><i class="fas fa-exclamation-triangle"></i> Report Damage
+            </h2>
+            <form onsubmit="submitDamageReport(event)" class="space-y-3">
+                <select id="damage-type" class="w-full p-2 border rounded bg-gray-50 text-sm font-bold">
+                    <option value="Road Blocked">🚧 Road Blocked</option>
+                    <option value="Building Collapse">🏚 Building Collapse</option>
+                    <option value="Power Failure">⚡ Power Failure</option>
+                    <option value="Flooding">🌊 Flooding</option>
+                </select>
+                <textarea id="damage-desc" placeholder="Describe the situation..."
+                    class="w-full p-2 border rounded bg-gray-50 text-sm h-20"></textarea>
+                <div class="flex gap-2">
+                    <button type="button" onclick="document.getElementById('damage-modal').classList.add('hidden')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-orange-600 text-white py-2 rounded font-bold text-sm shadow">Submit
+                        Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOST & FOUND MODAL -->
+    <div id="lost-modal"
+        class="hidden fixed inset-0 z-[1500] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-purple-700"><i class="fas fa-search"></i> Lost & Found</h2>
+                <div class="flex bg-gray-100 rounded p-1">
+                    <button onclick="toggleLostTab('person')" id="tab-person"
+                        class="px-3 py-1 rounded bg-purple-600 text-white text-xs font-bold transition">Person</button>
+                    <button onclick="toggleLostTab('item')" id="tab-item"
+                        class="px-3 py-1 rounded text-gray-500 text-xs font-bold transition hover:bg-gray-200">Item</button>
+                </div>
+            </div>
+
+            <!-- Missing Person Form -->
+            <form id="form-person" onsubmit="submitLostReport(event, 'person')" class="space-y-3">
+                <input type="text" id="p-name" placeholder="Name of Person"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="p-age" placeholder="Age" class="p-2 border rounded bg-gray-50 text-sm"
+                        required>
+                    <select id="p-gender" class="p-2 border rounded bg-gray-50 text-sm">
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Child</option>
+                    </select>
+                </div>
+                <input type="text" id="p-clothes" placeholder="Clothing Description"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+
+                <div class="mb-2">
+                    <label class="block text-xs font-bold mb-1">Upload Photo</label>
+                    <input type="file" id="p-image" accept="image/*"
+                        class="w-full border p-2 rounded text-xs bg-gray-50">
+                </div>
+
+                <input type="tel" id="p-contact" placeholder="Your Contact Number"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <div class="flex gap-2">
+                    <button type="button" onclick="document.getElementById('lost-modal').classList.add('hidden')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-purple-600 text-white py-2 rounded font-bold text-sm shadow">Report
+                        Missing</button>
+                </div>
+            </form>
+
+            <!-- Lost Item Form -->
+            <form id="form-item" onsubmit="submitLostReport(event, 'item')" class="hidden space-y-3">
+                <select id="i-type" class="w-full p-2 border rounded bg-gray-50 text-sm">
+                    <option>Wallet / ID</option>
+                    <option>Mobile Phone</option>
+                    <option>Bag / Luggage</option>
+                    <option>Jewelry</option>
+                </select>
+                <input type="text" id="i-desc" placeholder="Item Description"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <input type="text" id="i-loc" placeholder="Last Seen Location"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <input type="tel" id="i-contact" placeholder="Your Contact Number"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <div class="flex gap-2">
+                    <button type="button" onclick="document.getElementById('lost-modal').classList.add('hidden')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-gray-700 text-white py-2 rounded font-bold text-sm shadow">Report Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MEDICAL REPORT MODAL -->
+    <div id="medical-modal"
+        class="hidden fixed inset-0 z-[1500] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl animate-fade-in">
+            <h2 class="text-xl font-bold mb-4 text-blue-700"><i class="fas fa-heartbeat"></i> Medical Report</h2>
+            <form onsubmit="submitMedicalReport(event)" class="space-y-3">
+                <input type="hidden" id="med-severity">
+
+                <div class="bg-gray-100 p-2 rounded text-center mb-2">
+                    <span class="text-xs text-gray-500 uppercase font-bold">Severity Level</span>
+                    <div id="med-severity-display" class="font-black text-lg uppercase">CRITICAL</div>
+                </div>
+
+                <label class="block text-sm font-bold text-gray-700">Injury Type</label>
+                <select id="med-type" class="w-full p-2 border rounded bg-gray-50 text-sm">
+                    <option value="Bleeding">🩸 Severe Bleeding</option>
+                    <option value="Fracture">🦴 Bone Fracture</option>
+                    <option value="Burns">🔥 Burns</option>
+                    <option value="Breathing">🫁 Breathing Difficulty</option>
+                    <option value="Unconscious">💤 Unconscious</option>
+                    <option value="Chest Pain">💔 Chest Pain</option>
+                    <option value="Other">❓ Other</option>
+                </select>
+
+                <label class="flex items-center gap-3 p-3 bg-red-50 border border-red-100 rounded cursor-pointer">
+                    <input type="checkbox" id="med-conscious" class="w-5 h-5 accent-red-600">
+                    <span class="text-sm font-bold text-red-800">Patient is Unconscious?</span>
+                </label>
+
+                <div class="flex gap-2 mt-4">
+                    <button type="button" onclick="document.getElementById('medical-modal').classList.add('hidden')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 text-white py-2 rounded font-bold text-sm shadow">Send Alert</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- VOLUNTEER MODAL -->
+    <div id="volunteer-modal"
+        class="hidden fixed inset-0 z-[1500] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-teal-700"><i class="fas fa-hands-helping"></i> Community</h2>
+                <div class="flex bg-gray-100 rounded p-1">
+                    <button onclick="toggleVolTab('request')" id="tab-request"
+                        class="px-3 py-1 rounded bg-teal-600 text-white text-xs font-bold transition">Request
+                        Help</button>
+                    <button onclick="toggleVolTab('join')" id="tab-join"
+                        class="px-3 py-1 rounded text-gray-500 text-xs font-bold transition hover:bg-gray-200">Join</button>
+                </div>
+            </div>
+
+            <!-- Request Help Form -->
+            <form id="form-request" onsubmit="submitVolunteer(event, 'request')" class="space-y-3">
+                <div class="p-3 bg-teal-50 rounded border border-teal-100 text-xs text-teal-800 mb-2">
+                    Request non-emergency assistance from nearby volunteers.
+                </div>
+                <select id="req-type" class="w-full p-2 border rounded bg-gray-50 text-sm">
+                    <option value="Food/Water">🍞 Need Food / Water</option>
+                    <option value="Shelter">⛺ Need Shelter</option>
+                    <option value="Transport">🚗 Need Transport</option>
+                    <option value="Medical Supplies">💊 Need Medical Supplies</option>
+                    <option value="Other">❓ Other</option>
+                </select>
+                <textarea id="req-desc" placeholder="Details (e.g., 3 people, baby formula needed)"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm h-20" required></textarea>
+                <div class="flex gap-2">
+                    <button type="button" onclick="document.getElementById('volunteer-modal').classList.add('hidden')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-teal-600 text-white py-2 rounded font-bold text-sm shadow">Post
+                        Request</button>
+                </div>
+            </form>
+
+            <!-- Join Volunteer Form -->
+            <form id="form-join" onsubmit="submitVolunteer(event, 'join')" class="hidden space-y-3">
+                <div class="p-3 bg-blue-50 rounded border border-blue-100 text-xs text-blue-800 mb-2">
+                    Register as a volunteer to help others in your area.
+                </div>
+                <input type="text" id="vol-name" placeholder="Your Name"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <select id="vol-skill" class="w-full p-2 border rounded bg-gray-50 text-sm">
+                    <option value="General">General Assistance</option>
+                    <option value="First Aid">First Aid / Medical</option>
+                    <option value="Search & Rescue">Search & Rescue</option>
+                    <option value="Driver">Driver (Have Vehicle)</option>
+                    <option value="Cook">Cooking / Food Dist.</option>
+                </select>
+                <input type="tel" id="vol-contact" placeholder="Contact Number"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <div class="flex gap-2">
+                    <button type="button" onclick="document.getElementById('volunteer-modal').classList.add('hidden')"
+                        class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold text-sm">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 text-white py-2 rounded font-bold text-sm shadow">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CHECKLIST MODAL -->
+    <div id="checklist-modal"
+        class="hidden fixed inset-0 z-[1500] bg-black/50 flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl animate-fade-in">
+            <h2 class="text-xl font-bold mb-4">🎒 Preparedness Checklist</h2>
+            <div class="space-y-3 mb-6">
+                <label class="flex items-center gap-3 p-3 bg-gray-50 rounded cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 accent-blue-600">
+                    <span class="text-sm">Pack Go-Bag (Water, Meds)</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-50 rounded cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 accent-blue-600">
+                    <span class="text-sm">Save Emergency Numbers</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-50 rounded cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 accent-blue-600">
+                    <span class="text-sm">Identify Meeting Point</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-50 rounded cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 accent-blue-600">
+                    <span class="text-sm">Download Offline Maps</span>
+                </label>
+            </div>
+            <button onclick="document.getElementById('checklist-modal').classList.add('hidden')"
+                class="w-full bg-gray-800 text-white py-3 rounded-lg font-bold">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                app_name: "SARAL",
+                app_tagline: "Resilient Aid Layer",
+                status_safe: "STATUS: SAFE",
+                conn_mode: "Connection Mode",
+                conn_online: "Online (Internet)",
+                conn_mesh: "Mesh Radio (Offline)",
+                sos_title: "SOS",
+                sos_desc: "Broadcast Emergency Signal",
+                triage_title: "Health Triage",
+                btn_minor: "Minor",
+                btn_moderate: "Moderate",
+                btn_critical: "Critical",
+                checklist_title: "Preparedness Checklist",
+                checklist_desc: "Are you ready?",
+                safe_route_title: "Safe Route",
+                gps_active: "GPS Active",
+                nav_btn: "NAVIGATE TO SAFE ZONE",
+                sos_full_title: "SOS EMERGENCY",
+                sos_full_desc: "Broadcast Distress Signal",
+                btn_damage: "Report Damage",
+                btn_missing: "Find People",
+                btn_volunteer: "Volunteer"
+            },
+            hi: {
+                app_name: "सरल",
+                app_tagline: "आपदा सहायता मंच",
+                status_safe: "स्थिति: सुरक्षित",
+                conn_mode: "कनेक्शन मोड",
+                conn_online: "ऑनलाइन (इंटरनेट)",
+                conn_mesh: "मेश रेडियो (ऑफलाइन)",
+                sos_title: "बचाओ (SOS)",
+                sos_desc: "आपातकालीन संकेत भेजें",
+                triage_title: "स्वास्थ्य स्थिति",
+                btn_minor: "मामूली",
+                btn_moderate: "मध्यम",
+                btn_critical: "गंभीर",
+                checklist_title: "तैयारी सूची",
+                checklist_desc: "क्या आप तैयार हैं?",
+                safe_route_title: "सुरक्षित रास्ता",
+                gps_active: "जीपीएस सक्रिय",
+                nav_btn: "सुरक्षित क्षेत्र की ओर जाएं",
+                sos_full_title: "आपातकालीन SOS",
+                sos_full_desc: "संकट संकेत प्रसारित करें",
+                btn_damage: "नुकसान की रिपोर्ट करें",
+                btn_missing: "लापता लोग खोजें",
+                btn_volunteer: "स्वयंसेवक बनें"
+            },
+            mr: {
+                app_name: "सरल",
+                app_tagline: "आपत्ती मदत मंच",
+                status_safe: "स्थिती: सुरक्षित",
+                conn_mode: "कनेक्शन मोड",
+                conn_online: "ऑनलाइन (इंटरनेट)",
+                conn_mesh: "मेश रेडिओ (ऑफलाइन)",
+                sos_title: "वाचवा (SOS)",
+                sos_desc: "आणीबाणी सिग्नल पाठवा",
+                triage_title: "आरोग्य स्थिती",
+                btn_minor: "किरकोळ",
+                btn_moderate: "मध्यम",
+                btn_critical: "गंभीर",
+                checklist_title: "तयारी यादी",
+                checklist_desc: "तुम्ही तयार आहात का?",
+                safe_route_title: "सुरक्षित मार्ग",
+                gps_active: "जीपीएस सक्रिय",
+                nav_btn: "सुरक्षित क्षेत्राकडे जा",
+                sos_full_title: "आणीबाणी SOS",
+                sos_full_desc: "संकट सिग्नल प्रसारित करा",
+                btn_damage: "नुकसान कळवा",
+                btn_missing: "हरवलेली माणसे शोधा",
+                btn_volunteer: "स्वयंसेवक बना"
+            },
+            bn: {
+                app_name: "সরল",
+                app_tagline: "দুর্যোগ সহায়তা প্ল্যাটফর্ম",
+                status_safe: "অবস্থা: নিরাপদ",
+                conn_mode: "সংযোগ মোড",
+                conn_online: "অনলাইন (ইন্টারনেট)",
+                conn_mesh: "মেশ রেডিও (অফলাইন)",
+                sos_title: "বাঁচান (SOS)",
+                sos_desc: "জরুরী সংকেত পাঠান",
+                triage_title: "স্বাস্থ্য অবস্থা",
+                btn_minor: "সামান্য",
+                btn_moderate: "মাঝারি",
+                btn_critical: "গুরুতর",
+                checklist_title: "প্রস্তুতি তালিকা",
+                checklist_desc: "আপনি কি প্রস্তুত?",
+                safe_route_title: "নিরাপদ রুট",
+                gps_active: "জিপিএস সক্রিয়",
+                nav_btn: "নিরাপদ জোনে যান",
+                sos_full_title: "জরুরী SOS",
+                sos_full_desc: "বিপদ সংকেত প্রচার করুন",
+                btn_damage: "ক্ষয়ক্ষতির রিপোর্ট করুন",
+                btn_missing: "নিখোঁজ মানুষ খুঁজুন",
+                btn_volunteer: "স্বেচ্ছাসেবক হন"
+            }
+        };
+
+        function changeLanguage(lang) {
+            const t = translations[lang];
+            if (!t) return;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    if (el.tagName === 'INPUT' && el.type === 'placeholder') {
+                        el.placeholder = t[key];
+                    } else {
+                        el.innerText = t[key];
+                    }
+                }
+            });
+        }
+    </script>
+    <script>
+        const channel = new BroadcastChannel('kumbh_channel');
+        const randomNum = Math.floor(Math.random() * 10000);
+        const USER_ID = 'CITIZEN-' + randomNum;
+        document.getElementById('user-id-display').innerText = `ID: ${USER_ID}`;
+
+        let map;
+
+        // --- MESH MODE TOGGLE ---
+        function toggleMeshMode(checkbox) {
+            const status = document.getElementById('mesh-status');
+            const icon = document.getElementById('mesh-icon');
+
+            if (checkbox.checked) {
+                status.innerText = "Mesh Radio (Offline)";
+                status.classList.add('text-blue-600', 'font-bold');
+                icon.innerHTML = '<i class="fas fa-project-diagram text-blue-600"></i>';
+                alert("📡 Switched to Mesh Mode. You can now communicate without Internet.");
+            } else {
+                status.innerText = "Online (Internet)";
+                status.classList.remove('text-blue-600', 'font-bold');
+                icon.innerHTML = '<i class="fas fa-wifi"></i>';
+            }
+        }
+
+        // --- MAP & LOCATION ---
+        let startLoc = [28.6139, 77.2090]; // Default: New Delhi (Fallback)
+        let userMarker;
+        let routeLayer;
+
+        window.addEventListener('load', () => {
+            map = L.map('map').setView(startLoc, 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+            // Try to get real location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        startLoc = [position.coords.latitude, position.coords.longitude];
+                        map.setView(startLoc, 15);
+                        if (userMarker) map.removeLayer(userMarker);
+                        userMarker = L.marker(startLoc).addTo(map).bindPopup("You are here").openPopup();
+
+                        // Start sending heartbeat with REAL location
+                        setInterval(sendHeartbeat, 5000);
+                    },
+                    (error) => {
+                        console.error("Geolocation denied/error:", error);
+                        alert("Location access denied. Using default simulation location.");
+                        userMarker = L.marker(startLoc).addTo(map).bindPopup("Simulation Location").openPopup();
+                        setInterval(sendHeartbeat, 5000);
+                    }
+                );
+            } else {
+                alert("Geolocation not supported. Using simulation.");
+                userMarker = L.marker(startLoc).addTo(map).bindPopup("Simulation Location").openPopup();
+                setInterval(sendHeartbeat, 5000);
+            }
+        });
+
+        function sendHeartbeat() {
+            // Simulate slight movement around the ACTUAL location
+            const lat = startLoc[0] + (Math.random() - 0.5) * 0.0005;
+            const lng = startLoc[1] + (Math.random() - 0.5) * 0.0005;
+            const loc = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+            channel.postMessage({
+                userId: USER_ID,
+                type: 'LOCATION_UPDATE',
+                location: loc,
+                time: new Date().toLocaleTimeString()
+            });
+        }
+
+        // --- ACTIONS ---
+        function sendSOS() {
+            if (confirm("Are you sure you want to send an SOS?")) {
+                channel.postMessage({
+                    userId: USER_ID,
+                    type: 'SOS',
+                    details: 'Emergency Button Pressed',
+                    location: `${startLoc[0]}, ${startLoc[1]}`,
+                    time: new Date().toLocaleTimeString()
+                });
+                alert("SOS SENT! Help is on the way.");
+                document.getElementById('status-banner').className = "bg-red-600 text-white p-3 text-center font-bold text-sm shadow-md animate-pulse";
+                document.getElementById('status-banner').innerHTML = '<i class="fas fa-exclamation-triangle"></i> STATUS: SOS ACTIVE';
+            }
+        }
+
+        function reportHealth(severity) {
+            document.getElementById('medical-modal').classList.remove('hidden');
+            document.getElementById('med-severity').value = severity;
+
+            const display = document.getElementById('med-severity-display');
+            display.innerText = severity;
+
+            if (severity === 'Critical') display.className = "font-black text-lg uppercase text-red-600";
+            else if (severity === 'Moderate') display.className = "font-black text-lg uppercase text-yellow-600";
+            else display.className = "font-black text-lg uppercase text-green-600";
+        }
+
+        function submitMedicalReport(e) {
+            e.preventDefault();
+            const severity = document.getElementById('med-severity').value;
+            const type = document.getElementById('med-type').value;
+            const isUnconscious = document.getElementById('med-conscious').checked;
+
+            let details = `[${severity}] ${type}`;
+            if (isUnconscious) details += " (UNCONSCIOUS)";
+
+            channel.postMessage({
+                userId: USER_ID,
+                type: 'MEDICAL_REPORT',
+                severity: severity.toLowerCase(), // critical, moderate, minor
+                details: details,
+                location: `${startLoc[0]}, ${startLoc[1]}`,
+                time: new Date().toLocaleTimeString()
+            });
+
+            alert(`Medical Alert Sent! Help is coming.`);
+            document.getElementById('medical-modal').classList.add('hidden');
+            e.target.reset();
+        }
+
+        async function findSafeZone() {
+            // STAMPEDE PREVENTION LOGIC: Different Destinations for Crowd Control
+            const idNum = parseInt(USER_ID.replace(/\D/g, '')) || 0;
+            const isEven = idNum % 2 === 0;
+
+            // Define two slightly different "Safe Zones" to split the crowd
+            // In a real scenario, these would be two different entry gates or shelters.
+            const safeLatA = startLoc[0] + 0.015;
+            const safeLngA = startLoc[1] + 0.015;
+            const safeLocA = [safeLatA, safeLngA];
+
+            const safeLatB = startLoc[0] + 0.015; // Same Lat
+            const safeLngB = startLoc[1] - 0.015; // OPPOSITE Lng (West instead of East)
+            const safeLocB = [safeLatB, safeLngB];
+
+            let targetLoc, zoneName, routeColor;
+
+            if (isEven) {
+                targetLoc = safeLocA;
+                zoneName = "Safe Zone A (Primary)";
+                routeColor = '#2563eb'; // Blue
+            } else {
+                targetLoc = safeLocB;
+                zoneName = "Safe Zone B (Secondary)";
+                routeColor = '#9333ea'; // Purple
+            }
+
+            // Remove previous route
+            if (routeLayer) map.removeLayer(routeLayer);
+
+            // Add Markers for BOTH zones to show options
+            L.marker(safeLocA, { icon: L.divIcon({ className: 'text-2xl', html: '🏥' }) }).addTo(map).bindPopup("Safe Zone A").openPopup();
+            L.marker(safeLocB, { icon: L.divIcon({ className: 'text-2xl', html: '⛺' }) }).addTo(map).bindPopup("Safe Zone B");
+
+            // Fetch Route to the ASSIGNED target
+            const url = `https://router.project-osrm.org/route/v1/driving/${startLoc[1]},${startLoc[0]};${targetLoc[1]},${targetLoc[0]}?overview=full&geometries=geojson`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code === 'Ok') {
+                    const routeGeoJSON = data.routes[0].geometry;
+
+                    routeLayer = L.geoJSON(routeGeoJSON, {
+                        style: { color: routeColor, weight: 6, opacity: 0.8 }
+                    }).addTo(map);
+
+                    map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+
+                    alert(`🛡 STAMPEDE PREVENTION ACTIVE\n\n👤 User ID: ${USER_ID} (${isEven ? 'Even' : 'Odd'})\n📍 Assigned: ${zoneName}\n✅ Path: Optimized to reduce congestion.`);
+                } else {
+                    throw new Error("No route found");
+                }
+            } catch (error) {
+                console.error("Routing Error:", error);
+                // Fallback
+                routeLayer = L.polyline([startLoc, targetLoc], { color: 'red', weight: 2, dashArray: '5,5' }).addTo(map);
+                map.fitBounds([startLoc, targetLoc]);
+                alert("Offline Mode: Showing straight line direction.");
+            }
+        }
+
+        // --- NEW FEATURES LOGIC ---
+        function submitDamageReport(e) {
+            e.preventDefault();
+            const type = document.getElementById('damage-type').value;
+            const desc = document.getElementById('damage-desc').value;
+
+            channel.postMessage({
+                userId: USER_ID,
+                type: 'DAMAGE_REPORT',
+                details: `${type}: ${desc}`,
+                location: `${startLoc[0]}, ${startLoc[1]}`,
+                time: new Date().toLocaleTimeString()
+            });
+
+            alert("Damage Report Submitted. Authorities Notified.");
+            document.getElementById('damage-modal').classList.add('hidden');
+            e.target.reset();
+        }
+
+        function toggleLostTab(tab) {
+            if (tab === 'person') {
+                document.getElementById('form-person').classList.remove('hidden');
+                document.getElementById('form-item').classList.add('hidden');
+                document.getElementById('tab-person').className = "px-3 py-1 rounded bg-purple-600 text-white text-xs font-bold transition";
+                document.getElementById('tab-item').className = "px-3 py-1 rounded text-gray-500 text-xs font-bold transition hover:bg-gray-200";
+            } else {
+                document.getElementById('form-person').classList.add('hidden');
+                document.getElementById('form-item').classList.remove('hidden');
+                document.getElementById('tab-item').className = "px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold transition";
+                document.getElementById('tab-person').className = "px-3 py-1 rounded text-gray-500 text-xs font-bold transition hover:bg-gray-200";
+            }
+        }
+
+        function submitLostReport(e, category) {
+            e.preventDefault();
+            let details = "";
+            let type = "";
+            let imageFile = null;
+
+            if (category === 'person') {
+                type = "MISSING_PERSON";
+                const name = document.getElementById('p-name').value;
+                const age = document.getElementById('p-age').value;
+                const contact = document.getElementById('p-contact').value;
+                imageFile = document.getElementById('p-image').files[0];
+                details = `Missing: ${name} (${age}y) | Contact: ${contact}`;
+            } else {
+                type = "LOST_ITEM";
+                const item = document.getElementById('i-type').value;
+                const desc = document.getElementById('i-desc').value;
+                const contact = document.getElementById('i-contact').value;
+                details = `Lost: ${item} - ${desc} | Contact: ${contact}`;
+            }
+
+            const sendMsg = (imgBase64 = null) => {
+                channel.postMessage({
+                    userId: USER_ID,
+                    type: type,
+                    details: details,
+                    image: imgBase64,
+                    location: `${startLoc[0]}, ${startLoc[1]}`,
+                    time: new Date().toLocaleTimeString()
+                });
+                alert("Report Submitted Successfully.");
+                document.getElementById('lost-modal').classList.add('hidden');
+                e.target.reset();
+            };
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                    sendMsg(reader.result);
+                }
+                reader.readAsDataURL(imageFile);
+            } else {
+                sendMsg();
+            }
+        }
+
+        // --- VOLUNTEER LOGIC ---
+        function toggleVolTab(tab) {
+            if (tab === 'request') {
+                document.getElementById('form-request').classList.remove('hidden');
+                document.getElementById('form-join').classList.add('hidden');
+                document.getElementById('tab-request').className = "px-3 py-1 rounded bg-teal-600 text-white text-xs font-bold transition";
+                document.getElementById('tab-join').className = "px-3 py-1 rounded text-gray-500 text-xs font-bold transition hover:bg-gray-200";
+            } else {
+                document.getElementById('form-request').classList.add('hidden');
+                document.getElementById('form-join').classList.remove('hidden');
+                document.getElementById('tab-join').className = "px-3 py-1 rounded bg-blue-600 text-white text-xs font-bold transition";
+                document.getElementById('tab-request').className = "px-3 py-1 rounded text-gray-500 text-xs font-bold transition hover:bg-gray-200";
+            }
+        }
+
+        function submitVolunteer(e, category) {
+            e.preventDefault();
+            let type = "";
+            let details = "";
+
+            if (category === 'request') {
+                type = "HELP_REQUEST";
+                const reqType = document.getElementById('req-type').value;
+                const desc = document.getElementById('req-desc').value;
+                details = `Request: ${reqType} - ${desc}`;
+            } else {
+                type = "VOLUNTEER_JOIN";
+                const name = document.getElementById('vol-name').value;
+                const skill = document.getElementById('vol-skill').value;
+                const contact = document.getElementById('vol-contact').value;
+                details = `Volunteer: ${name} (${skill}) | Contact: ${contact}`;
+            }
+
+            channel.postMessage({
+                userId: USER_ID,
+                type: type,
+                details: details,
+                location: `${startLoc[0]}, ${startLoc[1]}`,
+                time: new Date().toLocaleTimeString()
+            });
+
+            alert(category === 'request' ? "Help Request Posted!" : "Registered as Volunteer!");
+            document.getElementById('volunteer-modal').classList.add('hidden');
+            e.target.reset();
+        }
+
+        // --- ALERTS ---
+        function dismissUserAlert() {
+            document.getElementById('user-disaster-alert').classList.add('hidden');
+        }
+
+        channel.onmessage = (event) => {
+            const data = event.data;
+            if (data.type === 'DISASTER_ALERT') {
+                const alertBox = document.getElementById('user-disaster-alert');
+                document.getElementById('user-alert-type').innerText = data.alertType + " ALERT";
+                document.getElementById('user-alert-msg').innerText = `DANGER in ${data.zone}. Evacuate immediately!`;
+                alertBox.classList.remove('hidden');
+
+                document.getElementById('status-banner').className = "bg-red-600 text-white p-3 text-center font-bold text-sm shadow-md animate-pulse";
+                document.getElementById('status-banner').innerHTML = '<i class="fas fa-exclamation-triangle"></i> STATUS: DANGER';
+            }
+            if (data.type === 'DISASTER_CLEAR') {
+                document.getElementById('user-disaster-alert').classList.add('hidden');
+                document.getElementById('status-banner').className = "bg-green-600 text-white p-3 text-center font-bold text-sm shadow-md";
+                document.getElementById('status-banner').innerHTML = '<i class="fas fa-check-circle"></i> STATUS: SAFE';
+                alert("✅ Area is now safe.");
+            }
+        };
+    </script>
+</body>
+
+</html>

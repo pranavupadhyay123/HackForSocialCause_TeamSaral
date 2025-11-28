@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SARAL - Central Command</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #admin-map {
+            height: 350px;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Custom scrollbar for logs */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white font-sans h-screen overflow-hidden">
+
+    <!-- NAVBAR -->
+    <nav
+        class="bg-gray-900 text-white p-4 shadow-lg border-b border-gray-700 h-[80px] flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600/20 p-2 rounded-lg border border-blue-500/50">
+                <i class="fas fa-shield-virus text-3xl text-blue-400"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black tracking-wider bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent"
+                    data-i18n="admin_title">
+                    SARAL COMMAND CENTER
+                </h1>
+                <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em]" data-i18n="admin_subtitle">Kumbh Mela •
+                    Prayagraj 2025</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <select onchange="changeLanguage(this.value)"
+                class="bg-gray-800 text-white text-xs p-2 rounded border border-gray-600 focus:outline-none">
+                <option value="en">English</option>
+                <option value="hi">हिंदी (Hindi)</option>
+                <option value="mr">मराठी (Marathi)</option>
+                <option value="bn">বাংলা (Bengali)</option>
+            </select>
+            <div class="text-right">
+                <div class="text-xs text-gray-400 font-bold uppercase" data-i18n="active_units">Active Units</div>
+                <div class="text-2xl font-mono font-bold text-green-400" id="active-users">0</div>
+            </div>
+            <span id="clock" class="text-gray-400 font-mono text-lg">00:00:00</span>
+        </div>
+    </nav>
+
+    <div class="p-4 grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-80px)]">
+
+        <!-- LEFT PANEL: ALERTS & CONTROLS -->
+        <div
+            class="bg-gray-800 p-4 rounded-xl shadow-lg lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden custom-scroll overflow-y-auto">
+
+            <!-- LIVE SITUATION FEED -->
+            <div class="bg-blue-900/20 border border-blue-700 p-3 rounded-lg">
+                <h3 class="text-xs font-bold text-blue-400 uppercase mb-2"><i class="fas fa-rss"></i> <span
+                        data-i18n="live_feed_title">Live Situation Feed</span></h3>
+                <div class="space-y-2 text-xs" id="live-feed-container">
+                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded">
+                        <span class="text-yellow-400"><i class="fas fa-wind"></i> Cyclone Alert</span>
+                        <span class="font-mono text-gray-300" id="feed-cyclone">Lvl 3 (Exp. 4h)</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded">
+                        <span class="text-orange-400"><i class="fas fa-fire"></i> Forest Fire Risk</span>
+                        <span class="font-mono text-gray-300" id="feed-fire">High (18km/h Wind)</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded">
+                        <span class="text-blue-400"><i class="fas fa-water"></i> River Level</span>
+                        <span class="font-mono text-red-400 animate-pulse" id="feed-river">Rising (+12cm)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DISASTER CONTROL -->
+            <div class="bg-red-900/20 border border-red-700 p-4 rounded-xl shadow-lg relative shrink-0">
+                <h2 class="text-lg font-bold text-red-400 mb-3"><i class="fas fa-bullhorn"></i> <span
+                        data-i18n="broadcast_alert_title">Broadcast Alert</span></h2>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] text-red-300 uppercase font-bold"
+                            data-i18n="lbl_disaster_type">Disaster Type</label>
+                        <select id="disaster-type"
+                            class="w-full bg-gray-900 border border-red-500 rounded p-2 text-sm text-white">
+                            <option value="FLOOD">🌊 Flood / Tsunami</option>
+                            <option value="EARTHQUAKE">📉 Earthquake</option>
+                            <option value="FIRE">🔥 Urban Fire</option>
+                            <option value="BIOHAZARD">☣ Bio-Hazard / Gas Leak</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-red-300 uppercase font-bold" data-i18n="lbl_impact_zone">Impact
+                            Zone</label>
+                        <select id="disaster-zone"
+                            class="w-full bg-gray-900 border border-red-500 rounded p-2 text-sm text-white">
+                            <option value="ZONE-A">Zone A (Urban Center)</option>
+                            <option value="ZONE-B">Zone B (Coastal/River)</option>
+                            <option value="ZONE-C">Zone C (Industrial)</option>
+                            <option value="ALL">⚠ ALL ZONES (General Evac)</option>
+                        </select>
+                    </div>
+                    <button onclick="declareDisaster()"
+                        class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded shadow-lg border border-red-400 active:scale-95 transition flex items-center justify-center gap-2 text-sm"
+                        data-i18n="btn_declare_emergency">
+                        <i class="fas fa-tower-broadcast"></i> SEND ALERT
+                    </button>
+                    <button onclick="clearDisaster()" id="clear-btn"
+                        class="hidden w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded shadow border border-green-400 text-sm"
+                        data-i18n="btn_clear_all">
+                        ✅ ALL CLEAR
+                    </button>
+                </div>
+            </div>
+
+            <!-- INFRASTRUCTURE LAYERS -->
+            <div class="bg-gray-700/50 p-3 rounded border border-gray-600">
+                <h3 class="text-xs font-bold text-gray-300 mb-2" data-i18n="infra_status_title">Infrastructure Status
+                </h3>
+                <div class="space-y-2">
+                    <label
+                        class="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-700 p-1 rounded">
+                        <span class="text-yellow-400"><i class="fas fa-bolt"></i> Power Grid</span>
+                        <input type="checkbox" class="accent-yellow-500" onchange="toggleLayer('power', this.checked)">
+                    </label>
+                    <label
+                        class="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-700 p-1 rounded">
+                        <span class="text-red-400"><i class="fas fa-road"></i> Road Blockages</span>
+                        <input type="checkbox" class="accent-red-500" onchange="toggleLayer('road', this.checked)">
+                    </label>
+                    <label
+                        class="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-700 p-1 rounded">
+                        <span class="text-orange-400"><i class="fas fa-building"></i> Damage Reports</span>
+                        <input type="checkbox" class="accent-orange-500" onchange="toggleLayer('damage', this.checked)">
+                    </label>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CENTER PANEL: MAP & INCIDENTS -->
+        <div class="lg:col-span-2 flex flex-col gap-4 h-full overflow-hidden">
+
+            <!-- MAP -->
+            <div class="bg-gray-800 p-2 rounded-xl shadow-lg border border-gray-700 relative flex-shrink-0">
+                <div
+                    class="absolute top-4 right-4 z-[500] bg-black/80 px-3 py-1 rounded text-xs font-mono border border-gray-500 shadow-lg">
+                    <span data-i18n="active_units"></span>Active Signals</span>: <span id="active-count"
+                        class="text-green-400 font-bold text-lg">0</span>
+                </div>
+                <div id="admin-map" class="rounded border border-gray-600"></div>
+            </div>
+
+            <!-- INCIDENT TABLE -->
+            <div class="bg-white text-gray-800 rounded-xl shadow-lg flex-1 overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center p-3 border-b bg-gray-50">
+                    <h2 class="text-lg font-bold text-gray-800 border-l-4 border-blue-600 pl-3">Live Incident Feed</h2>
+                    <button onclick="document.getElementById('incident-table').innerHTML = ''"
+                        class="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 font-bold">Clear</button>
+                </div>
+                <div class="overflow-auto flex-1 custom-scroll">
+                    <table class="min-w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-gray-600 uppercase text-xs sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="px-4 py-2">Time</th>
+                                <th class="px-4 py-2">Type</th>
+                                <th class="px-4 py-2">Details</th>
+                                <th class="px-4 py-2">Location</th>
+                                <th class="px-4 py-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incident-table">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: RESOURCES & TRIAGE -->
+        <div
+            class="bg-gray-800 p-4 rounded-xl shadow-lg lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden custom-scroll overflow-y-auto">
+
+            <!-- RESOURCE LOGISTICS -->
+            <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 shrink-0">
+                <h3 class="text-xs font-bold text-purple-400 uppercase mb-2"><i class="fas fa-boxes"></i> <span
+                        data-i18n="resource_logistics_title">Resource Logistics</span></h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-1">
+                        <span class="text-blue-300">💧 Water Packs</span>
+                        <div class="text-right">
+                            <span class="text-green-400 font-mono" id="res-water-avail">1200</span>
+                            <span class="text-gray-500">/</span>
+                            <span class="text-red-400 font-mono" id="res-water-req">0</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-1">
+                        <span class="text-orange-300">🧣 Blankets</span>
+                        <div class="text-right">
+                            <span class="text-green-400 font-mono" id="res-blankets-avail">300</span>
+                            <span class="text-gray-500">/</span>
+                            <span class="text-red-400 font-mono" id="res-blankets-req">0</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-red-300">🚑 Ambulances</span>
+                        <div class="text-right">
+                            <span class="text-green-400 font-mono" id="res-amb-avail">8</span>
+                            <span class="text-gray-500">/</span>
+                            <span class="text-red-400 font-mono" id="res-amb-req">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="dispatchResource()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-1 rounded text-[10px] font-bold"
+                        data-i18n="btn_dispatch">DISPATCH</button>
+                    <button onclick="markDelivered()"
+                        class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-1 rounded text-[10px] font-bold"
+                        data-i18n="btn_restock">RESTOCK</button>
+                </div>
+            </div>
+
+            <!-- INCIDENT LOG -->
+            <div class="flex-grow flex flex-col min-h-0">
+                <h3 class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0"><i class="fas fa-history"></i> <span
+                        data-i18n="incident_log_title">Incident Log</span></h3>
+                <div class="overflow-y-auto custom-scroll flex-grow bg-gray-900 rounded border border-gray-700">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-800 text-gray-400 text-[10px] sticky top-0">
+                            <tr>
+                                <th class="p-2" data-i18n="th_time">Time</th>
+                                <th class="p-2" data-i18n="th_type">Type</th>
+                                <th class="p-2" data-i18n="th_location">Location</th>
+                                <th class="p-2" data-i18n="th_details">Details</th>
+                                <th class="p-2" data-i18n="th_status">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incident-table" class="text-[10px] text-gray-300 divide-y divide-gray-800">
+                            <!-- Rows added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                admin_title: "SARAL COMMAND CENTER",
+                admin_subtitle: "Kumbh Mela • Prayagraj 2025",
+                active_units: "Active Units",
+                live_feed_title: "Live Situation Feed",
+                broadcast_alert_title: "Broadcast Alert",
+                lbl_disaster_type: "Disaster Type",
+                lbl_impact_zone: "Impact Zone",
+                btn_declare_emergency: "DECLARE EMERGENCY",
+                btn_clear_all: "CLEAR ALL",
+                infra_status_title: "Infrastructure Status",
+                triage_board_title: "Triage Board",
+                lbl_critical: "Critical",
+                lbl_moderate: "Moderate",
+                lbl_minor: "Minor",
+                resource_logistics_title: "Resource Logistics",
+                btn_dispatch: "Dispatch",
+                btn_restock: "Restock",
+                incident_log_title: "Incident Log",
+                th_time: "Time",
+                th_type: "Type",
+                th_location: "Location",
+                th_details: "Details",
+                th_status: "Status"
+            },
+            hi: {
+                admin_title: "सरल कमांड सेंटर",
+                admin_subtitle: "कुंभ मेला • प्रयागराज 2025",
+                active_units: "सक्रिय इकाइयाँ",
+                live_feed_title: "लाइव स्थिति फीड",
+                broadcast_alert_title: "चेतावनी प्रसारित करें",
+                lbl_disaster_type: "आपदा का प्रकार",
+                lbl_impact_zone: "प्रभाव क्षेत्र",
+                btn_declare_emergency: "आपातकाल घोषित करें",
+                btn_clear_all: "सभी साफ़ करें",
+                infra_status_title: "बुनियादी ढांचा स्थिति",
+                triage_board_title: "ट्राइएज बोर्ड",
+                lbl_critical: "गंभीर",
+                lbl_moderate: "मध्यम",
+                lbl_minor: "मामूली",
+                resource_logistics_title: "संसाधन रसद",
+                btn_dispatch: "भेजें (Dispatch)",
+                btn_restock: "पुनः स्टॉक करें",
+                incident_log_title: "घटना लॉग",
+                th_time: "समय",
+                th_type: "प्रकार",
+                th_location: "स्थान",
+                th_details: "विवरण",
+                th_status: "स्थिति"
+            },
+            mr: {
+                admin_title: "सरल कमांड सेंटर",
+                admin_subtitle: "कुंभ मेळा • प्रयागराज 2025",
+                active_units: "सक्रिय युनिट्स",
+                live_feed_title: "थेट परिस्थिती फीड",
+                broadcast_alert_title: "सतर्कता प्रसारित करा",
+                lbl_disaster_type: "आपत्तीचा प्रकार",
+                lbl_impact_zone: "प्रभाव क्षेत्र",
+                btn_declare_emergency: "आणीबाणी घोषित करा",
+                btn_clear_all: "सर्व साफ करा",
+                infra_status_title: "पायाभूत सुविधा स्थिती",
+                triage_board_title: "ट्राइएज बोर्ड",
+                lbl_critical: "गंभीर",
+                lbl_moderate: "मध्यम",
+                lbl_minor: "किरकोळ",
+                resource_logistics_title: "संसाधन लॉजिस्टिक्स",
+                btn_dispatch: "पाठवा (Dispatch)",
+                btn_restock: "पुन्हा स्टॉक करा",
+                incident_log_title: "घटना लॉग",
+                th_time: "वेळ",
+                th_type: "प्रकार",
+                th_location: "स्थान",
+                th_details: "तपशील",
+                th_status: "स्थिती"
+            },
+            bn: {
+                admin_title: "সরল কমান্ড সেন্টার",
+                admin_subtitle: "কুম্ভ মেলা • প্রয়াগরাজ 2025",
+                active_units: "সক্রিয় ইউনিট",
+                live_feed_title: "লাইভ পরিস্থিতি ফিড",
+                broadcast_alert_title: "সতর্কতা প্রচার করুন",
+                lbl_disaster_type: "দুর্যোগের ধরন",
+                lbl_impact_zone: "প্রভাব অঞ্চল",
+                btn_declare_emergency: "জরুরী অবস্থা ঘোষণা করুন",
+                btn_clear_all: "সব পরিষ্কার করুন",
+                infra_status_title: "অবকাঠামো অবস্থা",
+                triage_board_title: "ट्रায়াজ বোর্ড",
+                lbl_critical: "গুরুতর",
+                lbl_moderate: "মাঝারি",
+                lbl_minor: "সামান্য",
+                resource_logistics_title: "সম্পদ লজিস্টিকস",
+                btn_dispatch: "पाठান (Dispatch)",
+                btn_restock: "পুনরায় স্টক করুন",
+                incident_log_title: "ঘটনা লগ",
+                th_time: "সময়",
+                th_type: "ধরন",
+                th_location: "অবস্থান",
+                th_details: "বিবরণ",
+                th_status: "অবস্থা"
+            }
+        };
+
+        function changeLanguage(lang) {
+            const t = translations[lang];
+            if (!t) return;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    if (el.tagName === 'INPUT' && el.type === 'placeholder') {
+                        el.placeholder = t[key];
+                    } else {
+                        el.innerText = t[key];
+                    }
+                }
+            });
+        }
+    </script>
+    <script>
+        const channel = new BroadcastChannel('kumbh_channel');
+        let map;
+        const activeUsers = {};
+        let triageCounts = { critical: 0, moderate: 0, minor: 0 };
+
+        // --- 1. INITIALIZE MAP ---
+        // --- 1. INITIALIZE MAP ---
+        let hasCentered = false;
+
+        window.addEventListener('load', () => {
+            // Default view: India Center
+            map = L.map('admin-map').setView([20.5937, 78.9629], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }).addTo(map);
+        });
+
+        // --- 2. HANDLE INCOMING MESSAGES ---
+        channel.onmessage = (event) => {
+            const data = event.data;
+
+            // A. ALWAYS Update Map (Passive tracking)
+            if (data.type === 'LOCATION_UPDATE' || data.location) {
+                updateMapPosition(data);
+            }
+
+            // B. IF ALERT: Add to Table (Active Alert)
+            if (data.type !== 'LOCATION_UPDATE' && data.type !== 'DISASTER_ALERT' && data.type !== 'DISASTER_CLEAR') {
+                addIncidentRow(data);
+                playAlertSound();
+
+                // Update Triage if Health Alert
+                if (data.type === 'SOS') {
+                    updateTriage('critical');
+                } else if (data.type === 'MEDICAL_REPORT') {
+                    const severity = data.severity ? data.severity.toLowerCase() : 'minor';
+                    updateTriage(severity);
+                }
+                // 3. Handle Resource Requests
+                if (data.type === 'HELP_REQUEST') {
+                    if (data.details.toLowerCase().includes('food') || data.details.toLowerCase().includes('water')) {
+                        resources.water.req++;
+                    } else if (data.details.toLowerCase().includes('blanket') || data.details.toLowerCase().includes('shelter')) {
+                        resources.blankets.req++;
+                    } else if (data.details.toLowerCase().includes('medical') || data.details.toLowerCase().includes('doctor')) {
+                        resources.amb.req++; // Changed from resources.ambulance.req to resources.amb.req to match existing structure
+                    }
+                    updateResourceUI();
+                }
+
+                // 4. Handle Missing Person for Live Feed
+                if (data.type === 'MISSING_PERSON' && data.image) {
+                    const feedContainer = document.getElementById('live-feed-container');
+                    const feedItem = document.createElement('div');
+                    feedItem.className = "bg-purple-900/30 border border-purple-600 p-2 rounded flex gap-2 items-start animate-fade-in cursor-pointer hover:bg-purple-900/50 transition";
+
+                    // Store data for modal
+                    feedItem.onclick = () => openFeedModal(data);
+
+                    feedItem.innerHTML = `
+                        <img src="${data.image}" class="w-12 h-12 rounded object-cover border border-purple-400">
+                        <div>
+                            <div class="text-purple-300 font-bold text-[10px] uppercase">Missing Person Reported</div>
+                            <div class="text-gray-200 text-[10px] line-clamp-2">${data.details}</div>
+                            <div class="text-gray-400 text-[9px] mt-1"><i class="fas fa-map-marker-alt"></i> ${data.location}</div>
+                        </div>
+                    `;
+
+                    if (feedContainer) {
+                        feedContainer.prepend(feedItem);
+                    }
+                }
+            }
+        };
+
+        function openFeedModal(data) {
+            const modal = document.getElementById('feed-modal');
+            const content = document.getElementById('feed-modal-content');
+
+            content.innerHTML = `
+                <div class="flex flex-col gap-4">
+                    <div class="w-full h-64 bg-black rounded-lg overflow-hidden border border-gray-700 flex items-center justify-center">
+                        <img src="${data.image}" class="max-w-full max-h-full object-contain">
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2 py-1 bg-purple-900 text-purple-200 text-xs font-bold rounded border border-purple-700">MISSING PERSON</span>
+                            <span class="text-gray-400 text-xs font-mono">${data.time}</span>
+                        </div>
+                        <p class="text-lg text-white font-medium leading-relaxed">${data.details}</p>
+                        <div class="mt-2 text-sm text-blue-400 font-mono bg-blue-900/10 p-2 rounded border border-blue-900/30 inline-block">
+                            <i class="fas fa-map-marker-alt mr-2"></i> ${data.location}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function updateTriage(level) {
+            // Normalize level
+            level = level.toLowerCase();
+
+            // Validate level
+            if (level !== 'critical' && level !== 'moderate' && level !== 'minor') {
+                console.warn('Invalid triage level:', level);
+                return;
+            }
+
+            // Increment and Update UI
+            if (typeof triageCounts[level] === 'number') {
+                triageCounts[level]++;
+                const el = document.getElementById(`count-${level}`);
+                if (el) {
+                    el.innerText = triageCounts[level];
+                    // Add a temporary animation to show update
+                    el.parentElement.classList.add('animate-pulse');
+                    setTimeout(() => el.parentElement.classList.remove('animate-pulse'), 500);
+                }
+            }
+        }
+
+        // --- 3. JITTER FUNCTION ---
+        function getUniqueOffset(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return (hash % 100) / 400000;
+        }
+
+        // --- 4. MAP LOGIC ---
+        function updateMapPosition(data) {
+            if (!data.location || !data.location.includes(',')) return;
+            const [rawLat, rawLng] = data.location.split(',').map(Number);
+
+            // Auto-center on first received signal
+            if (!hasCentered) {
+                map.setView([rawLat, rawLng], 14);
+                hasCentered = true;
+            }
+
+            const lat = rawLat + getUniqueOffset(data.userId + 'lat');
+            const lng = rawLng + getUniqueOffset(data.userId + 'lng');
+
+            let color = '#22c55e'; // Green
+            let radius = 4;
+            let isStatic = false;
+
+            if (data.type === 'SOS') { color = '#ef4444'; radius = 10; }
+            else if (data.type === 'MISSING_PERSON') { color = '#9333ea'; radius = 8; } // Purple
+            else if (data.type === 'DAMAGE_REPORT') { color = '#f97316'; radius = 12; isStatic = true; } // Orange
+            else if (data.type === 'MEDICAL_REPORT') {
+                if (data.severity === 'critical') color = '#dc2626'; // Red
+                else if (data.severity === 'moderate') color = '#ca8a04'; // Yellow
+                else color = '#16a34a'; // Green
+                radius = 8;
+            }
+            else if (data.type === 'HELP_REQUEST') { color = '#0d9488'; radius = 8; } // Teal
+            else if (data.type === 'VOLUNTEER_JOIN') { color = '#2563eb'; radius = 6; } // Blue
+
+            if (activeUsers[data.userId]) {
+                const user = activeUsers[data.userId];
+                user.marker.setLatLng([lat, lng]);
+                user.marker.setStyle({ color: color, fillColor: color, radius: radius });
+                user.lastUpdate = Date.now();
+            } else {
+                const marker = L.circleMarker([lat, lng], {
+                    color: color, fillColor: color, fillOpacity: 0.7, weight: 1, radius: radius
+                }).addTo(map);
+
+                let tooltipText = `ID: ${data.userId}`;
+                if (data.type === 'DAMAGE_REPORT') tooltipText = `⚠ DAMAGE: ${data.details}`;
+                else if (data.type === 'MEDICAL_REPORT') tooltipText = `🏥 MED: ${data.details}`;
+                else if (data.type === 'HELP_REQUEST') tooltipText = `🙋 HELP: ${data.details}`;
+                else if (data.type === 'VOLUNTEER_JOIN') tooltipText = `🤝 VOL: ${data.details}`;
+
+                marker.bindTooltip(tooltipText, { direction: 'top', offset: [0, -5] });
+
+                // If it's a damage report, keep it longer or indefinitely (logic here just adds it)
+                activeUsers[data.userId] = { marker: marker, lastUpdate: Date.now() };
+            }
+
+            document.getElementById('active-count').innerText = Object.keys(activeUsers).length;
+        }
+
+        // --- 5. INCIDENT TABLE ---
+        function addIncidentRow(data) {
+            const table = document.getElementById('incident-table');
+            const rowId = 'inc-' + Date.now();
+
+            let badge = 'bg-blue-100 text-blue-800';
+            if (data.type === 'SOS') badge = 'bg-red-100 text-red-800 font-bold animate-pulse';
+            else if (data.type === 'MISSING_PERSON') badge = 'bg-purple-100 text-purple-800 font-bold';
+            else if (data.type === 'LOST_ITEM') badge = 'bg-gray-100 text-gray-800';
+            else if (data.type === 'DAMAGE_REPORT') badge = 'bg-orange-100 text-orange-800 font-bold';
+            else if (data.type === 'MEDICAL_REPORT') {
+                if (data.severity === 'critical') badge = 'bg-red-100 text-red-800 font-bold';
+                else if (data.severity === 'moderate') badge = 'bg-yellow-100 text-yellow-800 font-bold';
+                else badge = 'bg-green-100 text-green-800 font-bold';
+            }
+            else if (data.type === 'HELP_REQUEST') badge = 'bg-teal-100 text-teal-800 font-bold';
+            else if (data.type === 'VOLUNTEER_JOIN') badge = 'bg-blue-100 text-blue-800 font-bold';
+
+            const row = `
+                <tr id="${rowId}" class="border-b hover:bg-gray-50 animate-fade-in transition-colors">
+                    <td class="px-4 py-2 font-mono text-gray-500 whitespace-nowrap text-xs">${data.time}</td>
+                    <td class="px-4 py-2 font-bold text-gray-700 text-xs"><span class="${badge} px-2 py-1 rounded">${data.type}</span></td>
+                    <td class="px-4 py-2 text-xs text-gray-700">
+                        <div class="font-bold text-gray-500">ID: ${data.userId}</div>
+                        ${data.details || ''}
+                    </td>
+                    <td class="px-4 py-2 text-xs font-mono text-blue-600 cursor-pointer" onclick="map.setView([${data.location}], 18)">
+                        <i class="fas fa-map-marker-alt"></i> ${data.location}
+                    </td>
+                    <td class="px-4 py-2">
+                        <button onclick="this.parentElement.innerHTML='<span class=\\'text-green-600 font-bold text-xs\\'>ACKNOWLEDGED</span>'" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs shadow transition">Ack</button>
+                    </td>
+                </tr>
+            `;
+            table.insertAdjacentHTML('afterbegin', row);
+        }
+
+        // --- DISASTER LOGIC ---
+        function declareDisaster() {
+            const type = document.getElementById('disaster-type').value;
+            const zone = document.getElementById('disaster-zone').value;
+
+            channel.postMessage({
+                type: 'DISASTER_ALERT',
+                alertType: type,
+                zone: zone,
+                time: new Date().toLocaleTimeString()
+            });
+
+            alert(`🚨 ALERT BROADCAST: ${type} in ${zone}`);
+            document.getElementById('clear-btn').classList.remove('hidden');
+        }
+
+        function clearDisaster() {
+            channel.postMessage({ type: 'DISASTER_CLEAR' });
+            document.getElementById('clear-btn').classList.add('hidden');
+            alert("✅ All Clear Signal Sent.");
+        }
+
+        // --- INFRASTRUCTURE LAYERS (MOCK) ---
+        let layers = {};
+        function toggleLayer(type, show) {
+            if (show) {
+                // Add mock layers
+                if (type === 'power') {
+                    layers.power = L.polyline([[25.430, 81.880], [25.440, 81.890]], { color: 'yellow', weight: 5, dashArray: '10,10' }).addTo(map).bindPopup("Power Line Down");
+                } else if (type === 'road') {
+                    layers.road = L.circle([25.425, 81.870], { color: 'red', radius: 200 }).addTo(map).bindPopup("Road Blocked");
+                } else if (type === 'damage') {
+                    layers.damage = L.marker([25.432, 81.885]).addTo(map).bindPopup("Building Collapse Reported");
+                }
+            } else {
+                if (layers[type]) {
+                    map.removeLayer(layers[type]);
+                    delete layers[type];
+                }
+            }
+        }
+
+        setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString(), 1000);
+
+        function playAlertSound() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, ctx.currentTime);
+            osc.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.2);
+        }
+
+        // --- DYNAMIC FEATURES ---
+
+        // 1. Resource Logistics
+        const resources = {
+            water: { avail: 1200, req: 0, name: "Water Packs" },
+            blankets: { avail: 300, req: 0, name: "Blankets" },
+            amb: { avail: 8, req: 0, name: "Ambulances" }
+        };
+
+        function updateResourceUI() {
+            document.getElementById('res-water-avail').innerText = resources.water.avail;
+            document.getElementById('res-water-req').innerText = resources.water.req;
+            document.getElementById('res-blankets-avail').innerText = resources.blankets.avail;
+            document.getElementById('res-blankets-req').innerText = resources.blankets.req;
+            document.getElementById('res-amb-avail').innerText = resources.amb.avail;
+            document.getElementById('res-amb-req').innerText = resources.amb.req;
+        }
+
+        function dispatchResource() {
+            // Find a resource that needs dispatch (Req > 0)
+            const keys = Object.keys(resources);
+            const needed = keys.filter(k => resources[k].req > 0);
+
+            if (needed.length === 0) {
+                alert("All requests fulfilled! No dispatch needed.");
+                return;
+            }
+
+            // Prioritize the first needed item or random
+            const key = needed[0];
+            if (resources[key].avail > 0) {
+                resources[key].avail--;
+                resources[key].req--;
+                updateResourceUI();
+                alert(`🚚 Dispatched 1 Unit of ${resources[key].name}`);
+            } else {
+                alert(`❌ Cannot dispatch ${resources[key].name}. Out of Stock!`);
+            }
+        }
+
+        function markDelivered() {
+            // Simulate new stock arriving
+            const keys = Object.keys(resources);
+            const key = keys[Math.floor(Math.random() * keys.length)];
+            const amount = Math.floor(Math.random() * 50) + 1;
+
+            resources[key].avail += amount;
+            updateResourceUI();
+            alert(`📦 Shipment Arrived: +${amount} ${resources[key].name}`);
+        }
+
+        // 2. Early Warning Feed Simulation
+        setInterval(() => {
+            // Randomize Wind
+            const wind = 15 + Math.floor(Math.random() * 10);
+            document.getElementById('feed-fire').innerText = `High (${wind}km/h Wind)`;
+
+            // Randomize River
+            const riverChange = Math.floor(Math.random() * 20);
+            const riverEl = document.getElementById('feed-river');
+            riverEl.innerText = `Rising (+${10 + riverChange}cm)`;
+
+            if (riverChange > 15) {
+                riverEl.className = "font-mono text-red-500 font-bold animate-pulse";
+            } else {
+                riverEl.className = "font-mono text-red-400";
+            }
+
+            // Randomize Cyclone occasionally
+            if (Math.random() > 0.7) {
+                const lvl = Math.floor(Math.random() * 5) + 1;
+                document.getElementById('feed-cyclone').innerText = `Lvl ${lvl} (Exp. ${Math.floor(Math.random() * 12)}h)`;
+            }
+
+        }, 3000);
+    </script>
+    <!-- FEED DETAIL MODAL -->
+    <div id="feed-modal"
+        class="hidden fixed inset-0 z-[2000] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div
+            class="bg-gray-900 w-full max-w-lg rounded-xl p-6 shadow-2xl border border-gray-700 animate-fade-in relative">
+            <button onclick="document.getElementById('feed-modal').classList.add('hidden')"
+                class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h2 class="text-xl font-bold text-blue-400 mb-4 uppercase tracking-wider"><i class="fas fa-info-circle"></i>
+                Incident Details</h2>
+
+            <div id="feed-modal-content" class="space-y-4">
+                <!-- Content injected via JS -->
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="document.getElementById('feed-modal').classList.add('hidden')"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold transition">Close</button>
+                <button
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold transition shadow-lg shadow-blue-900/20">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
