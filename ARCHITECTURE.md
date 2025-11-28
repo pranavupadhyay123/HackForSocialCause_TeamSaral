@@ -1,8 +1,8 @@
-# System Architecture - SARAL (Resilient Aid Layer)
+# System Architecture - SARAL (Smart Alert & Resilient Aid Layer)
 
 ## 🏗️ Overview
 
-SARAL (Resilient Aid Layer) is designed as a distributed system to manage disaster response and crowd control. The current implementation serves as a **high-fidelity prototype** that demonstrates the core logic, user flows, and real-time interaction capabilities using browser-native APIs to simulate a full-stack environment.
+SARAL (Smart Alert & Resilient Aid Layer) is designed as a distributed system to manage disaster response and crowd control. The current implementation serves as a **high-fidelity prototype** that demonstrates the core logic, user flows, and real-time interaction capabilities using browser-native APIs to simulate a full-stack environment.
 
 ## 🧩 System Components
 

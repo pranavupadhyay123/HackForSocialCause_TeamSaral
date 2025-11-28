@@ -1,6 +1,6 @@
-# SARAL (Resilient Aid Layer) - Disaster Management & Crowd Control System
+# SARAL (Smart Alert & Resilient Aid Layer) - Disaster Management & Crowd Control System
 
-**SARAL (Resilient Aid Layer)** is a comprehensive disaster management and crowd control platform designed for large-scale events and emergency situations, adaptable for any high-density gathering or urban emergency scenario.
+**SARAL (Smart Alert & Resilient Aid Layer)** is a comprehensive disaster management and crowd control platform designed for large-scale events and emergency situations, adaptable for any high-density gathering or urban emergency scenario.
 
 The system consists of two interconnected applications:
 1.  **Command Center (Admin Dashboard):** For authorities to monitor situations, manage resources, and coordinate relief efforts.
