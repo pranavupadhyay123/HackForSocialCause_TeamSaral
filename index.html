@@ -62,8 +62,8 @@
                     data-i18n="admin_title">
                     SARAL (Resilient Aid Layer) COMMAND CENTER
                 </h1>
-                <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em]" data-i18n="admin_subtitle">Kumbh Mela •
-                    Prayagraj 2025</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em]" data-i18n="admin_subtitle">Disaster
+                    Management System</p>
             </div>
         </div>
         <div class="flex items-center gap-6">
@@ -285,7 +285,7 @@
         const translations = {
             en: {
                 admin_title: "SARAL (Resilient Aid Layer) COMMAND CENTER",
-                admin_subtitle: "Kumbh Mela • Prayagraj 2025",
+                admin_subtitle: "Disaster Management System",
                 active_units: "Active Units",
                 live_feed_title: "Live Situation Feed",
                 broadcast_alert_title: "Broadcast Alert",
@@ -310,7 +310,7 @@
             },
             hi: {
                 admin_title: "सरल कमांड सेंटर",
-                admin_subtitle: "कुंभ मेला • प्रयागराज 2025",
+                admin_subtitle: "आपदा प्रबंधन प्रणाली",
                 active_units: "सक्रिय इकाइयाँ",
                 live_feed_title: "लाइव स्थिति फीड",
                 broadcast_alert_title: "चेतावनी प्रसारित करें",
@@ -335,7 +335,7 @@
             },
             mr: {
                 admin_title: "सरल कमांड सेंटर",
-                admin_subtitle: "कुंभ मेळा • प्रयागराज 2025",
+                admin_subtitle: "आपत्ती व्यवस्थापन प्रणाली",
                 active_units: "सक्रिय युनिट्स",
                 live_feed_title: "थेट परिस्थिती फीड",
                 broadcast_alert_title: "सतर्कता प्रसारित करा",
@@ -360,7 +360,7 @@
             },
             bn: {
                 admin_title: "সরল কমান্ড সেন্টার",
-                admin_subtitle: "কুম্ভ মেলা • প্রয়াগরাজ 2025",
+                admin_subtitle: "দুর্যোগ ব্যবস্থাপনা সিস্টেম",
                 active_units: "সক্রিয় ইউনিট",
                 live_feed_title: "লাইভ পরিস্থিতি ফিড",
                 broadcast_alert_title: "সতর্কতা প্রচার করুন",
@@ -402,7 +402,7 @@
         }
     </script>
     <script>
-        const channel = new BroadcastChannel('kumbh_channel');
+        const channel = new BroadcastChannel('saral_channel');
         let map;
         const activeUsers = {};
         let triageCounts = { critical: 0, moderate: 0, minor: 0 };

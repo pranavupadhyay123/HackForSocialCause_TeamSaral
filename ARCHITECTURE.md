@@ -41,7 +41,7 @@ In this prototype, the **BroadcastChannel API** acts as the pseudo-backend, enab
 ```mermaid
 sequenceDiagram
     participant User as Citizen App
-    participant Bus as BroadcastChannel ('kumbh_channel')
+    participant Bus as BroadcastChannel ('saral_channel')
     participant Admin as Command Center
 
     Note over User, Admin: Real-time Communication Loop
