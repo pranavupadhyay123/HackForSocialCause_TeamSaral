@@ -223,7 +223,7 @@
                     <div class="flex justify-between items-center border-b border-gray-800 pb-1">
                         <span class="text-blue-300">💧 Water Packs</span>
                         <div class="text-right">
-                            <span class="text-green-400 font-mono" id="res-water-avail">1200</span>
+                            <span class="text-green-400 font-mono" id="res-water-avail">1000</span>
                             <span class="text-gray-500">/</span>
                             <span class="text-red-400 font-mono" id="res-water-req">0</span>
                         </div>
@@ -231,7 +231,7 @@
                     <div class="flex justify-between items-center border-b border-gray-800 pb-1">
                         <span class="text-orange-300">🧣 Blankets</span>
                         <div class="text-right">
-                            <span class="text-green-400 font-mono" id="res-blankets-avail">300</span>
+                            <span class="text-green-400 font-mono" id="res-blankets-avail">1000</span>
                             <span class="text-gray-500">/</span>
                             <span class="text-red-400 font-mono" id="res-blankets-req">0</span>
                         </div>
@@ -239,7 +239,7 @@
                     <div class="flex justify-between items-center">
                         <span class="text-red-300">🚑 Ambulances</span>
                         <div class="text-right">
-                            <span class="text-green-400 font-mono" id="res-amb-avail">8</span>
+                            <span class="text-green-400 font-mono" id="res-amb-avail">1000</span>
                             <span class="text-gray-500">/</span>
                             <span class="text-red-400 font-mono" id="res-amb-req">0</span>
                         </div>
@@ -255,29 +255,39 @@
                 </div>
             </div>
 
-            <!-- INCIDENT LOG -->
-            <div class="flex-grow flex flex-col min-h-0">
-                <h3 class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0"><i class="fas fa-history"></i> <span
-                        data-i18n="incident_log_title">Incident Log</span></h3>
-                <div class="overflow-y-auto custom-scroll flex-grow bg-gray-900 rounded border border-gray-700">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-gray-800 text-gray-400 text-[10px] sticky top-0">
-                            <tr>
-                                <th class="p-2" data-i18n="th_time">Time</th>
-                                <th class="p-2" data-i18n="th_type">Type</th>
-                                <th class="p-2" data-i18n="th_location">Location</th>
-                                <th class="p-2" data-i18n="th_details">Details</th>
-                                <th class="p-2" data-i18n="th_status">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="incident-table" class="text-[10px] text-gray-300 divide-y divide-gray-800">
-                            <!-- Rows added dynamically -->
-                        </tbody>
-                    </table>
+            <!-- REGISTERED VOLUNTEERS (New Panel) -->
+            <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 shrink-0 flex flex-col gap-2 min-h-[150px]">
+                <h3 class="text-xs font-bold text-blue-400 uppercase"><i class="fas fa-users"></i> Registered Volunteers
+                </h3>
+                <div id="volunteer-list" class="space-y-2 overflow-y-auto custom-scroll flex-grow pr-1">
+                    <!-- Dynamic Volunteer Cards -->
                 </div>
             </div>
-
         </div>
+
+        <!-- INCIDENT LOG -->
+        <div class="flex-grow flex flex-col min-h-0">
+            <h3 class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0"><i class="fas fa-history"></i> <span
+                    data-i18n="incident_log_title">Incident Log</span></h3>
+            <div class="overflow-y-auto custom-scroll flex-grow bg-gray-900 rounded border border-gray-700">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-800 text-gray-400 text-[10px] sticky top-0">
+                        <tr>
+                            <th class="p-2" data-i18n="th_time">Time</th>
+                            <th class="p-2" data-i18n="th_type">Type</th>
+                            <th class="p-2" data-i18n="th_location">Location</th>
+                            <th class="p-2" data-i18n="th_details">Details</th>
+                            <th class="p-2" data-i18n="th_status">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incident-table" class="text-[10px] text-gray-300 divide-y divide-gray-800">
+                        <!-- Rows added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
 
     </div>
 
@@ -442,36 +452,84 @@
                 }
                 // 3. Handle Resource Requests
                 if (data.type === 'HELP_REQUEST') {
+                    const quantity = data.quantity || 1;
                     if (data.details.toLowerCase().includes('food') || data.details.toLowerCase().includes('water')) {
-                        resources.water.req++;
+                        resources.water.req += quantity;
                     } else if (data.details.toLowerCase().includes('blanket') || data.details.toLowerCase().includes('shelter')) {
-                        resources.blankets.req++;
+                        resources.blankets.req += quantity;
                     } else if (data.details.toLowerCase().includes('medical') || data.details.toLowerCase().includes('doctor')) {
-                        resources.amb.req++; // Changed from resources.ambulance.req to resources.amb.req to match existing structure
+                        resources.amb.req += quantity;
                     }
                     updateResourceUI();
                 }
 
-                // 4. Handle Missing Person for Live Feed
-                if (data.type === 'MISSING_PERSON' && data.image) {
-                    const feedContainer = document.getElementById('live-feed-container');
-                    const feedItem = document.createElement('div');
-                    feedItem.className = "bg-purple-900/30 border border-purple-600 p-2 rounded flex gap-2 items-start animate-fade-in cursor-pointer hover:bg-purple-900/50 transition";
-
-                    // Store data for modal
-                    feedItem.onclick = () => openFeedModal(data);
-
-                    feedItem.innerHTML = `
-                        <img src="${data.image}" class="w-12 h-12 rounded object-cover border border-purple-400">
-                        <div>
-                            <div class="text-purple-300 font-bold text-[10px] uppercase">Missing Person Reported</div>
-                            <div class="text-gray-200 text-[10px] line-clamp-2">${data.details}</div>
-                            <div class="text-gray-400 text-[9px] mt-1"><i class="fas fa-map-marker-alt"></i> ${data.location}</div>
+                // 4. Handle Volunteer Join (Sidebar Profile)
+                if (data.type === 'VOLUNTEER_JOIN') {
+                    const container = document.getElementById('volunteer-list');
+                    const profileCard = document.createElement('div');
+                    profileCard.className = "bg-gray-800 p-2 rounded border border-gray-600 flex gap-2 items-center animate-fade-in";
+                    profileCard.innerHTML = `
+                        <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0 border border-blue-400">
+                             ${data.image
+                            ? `<img src="${data.image}" class="w-full h-full object-cover">`
+                            : `<i class="fas fa-user-shield text-gray-400 text-xs flex justify-center items-center h-full"></i>`
+                        }
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-[10px] font-bold text-white truncate">${data.details.split('|')[0].replace('Volunteer: ', '')}</div>
+                            <div class="text-[9px] text-gray-400 truncate">${data.details.split('|')[1] || ''}</div>
                         </div>
                     `;
+                    container.prepend(profileCard);
+                }
 
-                    if (feedContainer) {
-                        feedContainer.prepend(feedItem);
+                // 4. Handle Missing Person for Live Feed & Persistent Map Marker
+                if (data.type === 'MISSING_PERSON') {
+                    // Update Live Feed (Existing Logic)
+                    if (data.image) {
+                        const feedContainer = document.getElementById('live-feed-container');
+                        const feedItem = document.createElement('div');
+                        feedItem.className = "bg-purple-900/30 border border-purple-600 p-2 rounded flex gap-2 items-start animate-fade-in cursor-pointer hover:bg-purple-900/50 transition";
+
+                        // Store data for modal
+                        feedItem.onclick = () => openFeedModal(data);
+
+                        feedItem.innerHTML = `
+                            <img src="${data.image}" class="w-12 h-12 rounded object-cover border border-purple-400">
+                            <div>
+                                <div class="text-purple-300 font-bold text-[10px] uppercase">Missing Person Reported</div>
+                                <div class="text-gray-200 text-[10px] line-clamp-2">${data.details}</div>
+                                <div class="text-gray-400 text-[9px] mt-1"><i class="fas fa-map-marker-alt"></i> ${data.location}</div>
+                            </div>
+                        `;
+
+                        if (feedContainer) {
+                            feedContainer.prepend(feedItem);
+                        }
+                    }
+
+                    // ADD PERSISTENT MARKER TO MAP
+                    if (data.location && data.location.includes(',')) {
+                        const [lat, lng] = data.location.split(',').map(Number);
+                        const marker = L.marker([lat, lng], {
+                            icon: L.divIcon({
+                                className: 'text-2xl',
+                                html: '<div class="bg-white rounded-full p-1 border-2 border-purple-600 shadow-lg"><i class="fas fa-user-circle text-purple-600 text-2xl"></i></div>',
+                                iconSize: [36, 36],
+                                iconAnchor: [18, 18]
+                            })
+                        }).addTo(map);
+
+                        marker.bindPopup(`
+                            <div class="text-gray-800 text-center">
+                                <strong class="text-purple-700">MISSING PERSON</strong><br>
+                                <div class="text-xs">${data.details}</div>
+                                <div class="text-[10px] text-gray-500 mt-1">Reported: ${data.time}</div>
+                                ${data.image ? `<img src="${data.image}" class="mt-2 w-full h-24 object-cover rounded">` : ''}
+                            </div>
+                         `, { maxWidth: 200 });
+
+                        // Optional: Flash the marker initially?
                     }
                 }
             }
@@ -552,7 +610,14 @@
             let radius = 4;
             let isStatic = false;
 
-            if (data.type === 'SOS') { color = '#ef4444'; radius = 10; }
+            if (data.type === 'SOS') {
+                color = '#ef4444';
+                radius = 10;
+                // PERSIST SOS STATE
+                if (activeUsers[data.userId]) {
+                    activeUsers[data.userId].sosActive = true;
+                }
+            }
             else if (data.type === 'MISSING_PERSON') { color = '#9333ea'; radius = 8; } // Purple
             else if (data.type === 'DAMAGE_REPORT') { color = '#f97316'; radius = 12; isStatic = true; } // Orange
             else if (data.type === 'MEDICAL_REPORT') {
@@ -567,6 +632,13 @@
             if (activeUsers[data.userId]) {
                 const user = activeUsers[data.userId];
                 user.marker.setLatLng([lat, lng]);
+
+                // PERSISTENCE CHECK: If user is in SOS mode, keep it RED
+                if (user.sosActive) {
+                    color = '#ef4444';
+                    radius = 10;
+                }
+
                 user.marker.setStyle({ color: color, fillColor: color, radius: radius });
                 user.lastUpdate = Date.now();
             } else {
@@ -608,18 +680,18 @@
             else if (data.type === 'VOLUNTEER_JOIN') badge = 'bg-blue-100 text-blue-800 font-bold';
 
             const row = `
-                <tr id="${rowId}" class="border-b hover:bg-gray-50 animate-fade-in transition-colors">
-                    <td class="px-4 py-2 font-mono text-gray-500 whitespace-nowrap text-xs">${data.time}</td>
-                    <td class="px-4 py-2 font-bold text-gray-700 text-xs"><span class="${badge} px-2 py-1 rounded">${data.type}</span></td>
-                    <td class="px-4 py-2 text-xs text-gray-700">
-                        <div class="font-bold text-gray-500">ID: ${data.userId}</div>
+                <tr id="${rowId}" class="border-b border-gray-800 hover:bg-gray-800 animate-fade-in transition-colors">
+                    <td class="px-4 py-2 font-mono text-gray-400 whitespace-nowrap text-xs">${data.time}</td>
+                    <td class="px-4 py-2 font-bold text-gray-300 text-xs"><span class="${badge} px-2 py-1 rounded shadow-sm">${data.type}</span></td>
+                    <td class="px-4 py-2 text-xs text-gray-300">
+                        <div class="font-bold text-gray-400">ID: ${data.userId}</div>
                         ${data.details || ''}
                     </td>
-                    <td class="px-4 py-2 text-xs font-mono text-blue-600 cursor-pointer" onclick="map.setView([${data.location}], 18)">
+                    <td class="px-4 py-2 text-xs font-mono text-blue-400 cursor-pointer hover:text-blue-300" onclick="map.setView([${data.location}], 18)">
                         <i class="fas fa-map-marker-alt"></i> ${data.location}
                     </td>
                     <td class="px-4 py-2">
-                        <button onclick="this.parentElement.innerHTML='<span class=\\'text-green-600 font-bold text-xs\\'>ACKNOWLEDGED</span>'" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs shadow transition">Ack</button>
+                        <button onclick="this.parentElement.innerHTML='<span class=\\'text-green-500 font-bold text-xs\\'>ACKNOWLEDGED</span>'" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-xs shadow transition border border-blue-500">Ack</button>
                     </td>
                 </tr>
             `;
@@ -683,10 +755,11 @@
         // --- DYNAMIC FEATURES ---
 
         // 1. Resource Logistics
+        // 1. Resource Logistics
         const resources = {
-            water: { avail: 1200, req: 0, name: "Water Packs" },
-            blankets: { avail: 300, req: 0, name: "Blankets" },
-            amb: { avail: 8, req: 0, name: "Ambulances" }
+            water: { avail: 1000, req: 0, name: "Water Packs" },
+            blankets: { avail: 1000, req: 0, name: "Blankets" },
+            amb: { avail: 1000, req: 0, name: "Ambulances" }
         };
 
         function updateResourceUI() {
@@ -708,27 +781,49 @@
                 return;
             }
 
-            // Prioritize the first needed item or random
+            // Prioritize the first needed item
             const key = needed[0];
-            if (resources[key].avail > 0) {
-                resources[key].avail--;
-                resources[key].req--;
+            const required = resources[key].req;
+            const available = resources[key].avail;
+
+            if (available >= required) {
+                resources[key].avail -= required;
+                resources[key].req = 0; // Fulfilled all
                 updateResourceUI();
-                alert(`🚚 Dispatched 1 Unit of ${resources[key].name}`);
+                alert(`🚚 Dispatched ${required} Units of ${resources[key].name}`);
+            } else if (available > 0) {
+                // Partial dispatch
+                resources[key].avail = 0;
+                resources[key].req -= available;
+                updateResourceUI();
+                alert(`🚚 Dispatched partial ${available} Units of ${resources[key].name}. ${resources[key].req} still needed.`);
             } else {
                 alert(`❌ Cannot dispatch ${resources[key].name}. Out of Stock!`);
             }
         }
 
         function markDelivered() {
-            // Simulate new stock arriving
+            // Smart Restock: Refill all resources up to 1000 MAX
+            let report = [];
             const keys = Object.keys(resources);
-            const key = keys[Math.floor(Math.random() * keys.length)];
-            const amount = Math.floor(Math.random() * 50) + 1;
+            let anyRestocked = false;
 
-            resources[key].avail += amount;
-            updateResourceUI();
-            alert(`📦 Shipment Arrived: +${amount} ${resources[key].name}`);
+            keys.forEach(key => {
+                const current = resources[key].avail;
+                if (current < 1000) {
+                    const diff = 1000 - current;
+                    resources[key].avail = 1000;
+                    report.push(`+${diff} ${resources[key].name}`);
+                    anyRestocked = true;
+                }
+            });
+
+            if (anyRestocked) {
+                updateResourceUI();
+                alert(`📦 Smart Restock Complete:\n${report.join('\n')}`);
+            } else {
+                alert("📦 Storage Full. No restock needed (All 1000).");
+            }
         }
 
         // 2. Early Warning Feed Simulation

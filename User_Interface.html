@@ -360,6 +360,8 @@
                     <option value="Medical Supplies">💊 Need Medical Supplies</option>
                     <option value="Other">❓ Other</option>
                 </select>
+                <input type="number" id="req-qty" placeholder="Quantity Needed (e.g. 5)" min="1"
+                    class="w-full p-2 border rounded bg-gray-50 text-sm" required>
                 <textarea id="req-desc" placeholder="Details (e.g., 3 people, baby formula needed)"
                     class="w-full p-2 border rounded bg-gray-50 text-sm h-20" required></textarea>
                 <div class="flex gap-2">
@@ -378,6 +380,7 @@
                 </div>
                 <input type="text" id="vol-name" placeholder="Your Name"
                     class="w-full p-2 border rounded bg-gray-50 text-sm" required>
+                <input type="file" id="vol-photo" accept="image/*" class="w-full p-2 border rounded bg-gray-50 text-sm">
                 <select id="vol-skill" class="w-full p-2 border rounded bg-gray-50 text-sm">
                     <option value="General">General Assistance</option>
                     <option value="First Aid">First Aid / Medical</option>
@@ -577,40 +580,71 @@
 
             // Try to get real location
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
+                navigator.geolocation.watchPosition(
                     (position) => {
-                        startLoc = [position.coords.latitude, position.coords.longitude];
-                        map.setView(startLoc, 15);
-                        if (userMarker) map.removeLayer(userMarker);
-                        userMarker = L.marker(startLoc).addTo(map).bindPopup("You are here").openPopup();
+                        const accuracy = position.coords.accuracy;
+                        let lat = position.coords.latitude;
+                        let lng = position.coords.longitude;
+                        let isSnapping = false;
 
-                        // Start sending heartbeat with REAL location
-                        setInterval(sendHeartbeat, 5000);
+                        // ACCURACY CHECK: If error > 5km, snap to Nirjuli (User's known location)
+                        // This fixes the "Imphal" IP-based geolocation error.
+                        if (accuracy > 5000) {
+                            lat = 27.1287;
+                            lng = 93.7380;
+                            isSnapping = true;
+                        }
+
+                        startLoc = [lat, lng];
+
+                        // Update User Marker
+                        const popupContent = isSnapping
+                            ? `<strong>Signal Weak (${Math.round(accuracy)}m)</strong><br>Snapped to: Nirjuli`
+                            : `Location: ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>Accuracy: ${accuracy.toFixed(1)}m`;
+
+                        if (userMarker) {
+                            userMarker.setLatLng(startLoc);
+                            userMarker.setPopupContent(popupContent);
+                        } else {
+                            userMarker = L.marker(startLoc).addTo(map)
+                                .bindPopup(popupContent)
+                                .openPopup();
+                            map.setView(startLoc, 15);
+                        }
+
+                        // Send Heartbeat IMMEDIATELY
+                        sendHeartbeat();
                     },
                     (error) => {
                         console.error("Geolocation denied/error:", error);
-                        alert("Location access denied. Using default simulation location.");
-                        userMarker = L.marker(startLoc).addTo(map).bindPopup("Simulation Location").openPopup();
-                        setInterval(sendHeartbeat, 5000);
+                        // Fallback
+                        if (!userMarker) {
+                            alert("Location failed. Using simulation default.");
+                            userMarker = L.marker(startLoc).addTo(map).bindPopup("Simulation Location").openPopup();
+                        }
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
                     }
                 );
             } else {
                 alert("Geolocation not supported. Using simulation.");
                 userMarker = L.marker(startLoc).addTo(map).bindPopup("Simulation Location").openPopup();
-                setInterval(sendHeartbeat, 5000);
             }
+
+            setInterval(sendHeartbeat, 5000);
         });
 
         function sendHeartbeat() {
-            // Simulate slight movement around the ACTUAL location
-            const lat = startLoc[0] + (Math.random() - 0.5) * 0.0005;
-            const lng = startLoc[1] + (Math.random() - 0.5) * 0.0005;
-            const loc = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            // Send EXACT location, NO JITTER
+            const locationString = `${startLoc[0]}, ${startLoc[1]}`;
 
             channel.postMessage({
                 userId: USER_ID,
                 type: 'LOCATION_UPDATE',
-                location: loc,
+                location: locationString,
                 time: new Date().toLocaleTimeString()
             });
         }
@@ -827,31 +861,50 @@
             e.preventDefault();
             let type = "";
             let details = "";
+            let quantity = 0;
+            let imageFile = null;
 
             if (category === 'request') {
                 type = "HELP_REQUEST";
                 const reqType = document.getElementById('req-type').value;
                 const desc = document.getElementById('req-desc').value;
-                details = `Request: ${reqType} - ${desc}`;
+                const qtyInput = document.getElementById('req-qty').value;
+                quantity = parseInt(qtyInput) || 1;
+                details = `Request: ${quantity}x ${reqType} - ${desc}`;
             } else {
                 type = "VOLUNTEER_JOIN";
                 const name = document.getElementById('vol-name').value;
                 const skill = document.getElementById('vol-skill').value;
                 const contact = document.getElementById('vol-contact').value;
+                imageFile = document.getElementById('vol-photo').files[0];
                 details = `Volunteer: ${name} (${skill}) | Contact: ${contact}`;
             }
 
-            channel.postMessage({
-                userId: USER_ID,
-                type: type,
-                details: details,
-                location: `${startLoc[0]}, ${startLoc[1]}`,
-                time: new Date().toLocaleTimeString()
-            });
+            const sendVolMsg = (imgBase64 = null) => {
+                channel.postMessage({
+                    userId: USER_ID,
+                    type: type,
+                    details: details,
+                    quantity: quantity,
+                    image: imgBase64,
+                    location: `${startLoc[0]}, ${startLoc[1]}`,
+                    time: new Date().toLocaleTimeString()
+                });
 
-            alert(category === 'request' ? "Help Request Posted!" : "Registered as Volunteer!");
-            document.getElementById('volunteer-modal').classList.add('hidden');
-            e.target.reset();
+                alert(category === 'request' ? "Help Request Posted!" : "Registered as Volunteer!");
+                document.getElementById('volunteer-modal').classList.add('hidden');
+                e.target.reset();
+            };
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                    sendVolMsg(reader.result);
+                }
+                reader.readAsDataURL(imageFile);
+            } else {
+                sendVolMsg();
+            }
         }
 
         // --- ALERTS ---
