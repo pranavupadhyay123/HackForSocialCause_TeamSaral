@@ -263,27 +263,26 @@
                     <!-- Dynamic Volunteer Cards -->
                 </div>
             </div>
-        </div>
-
-        <!-- INCIDENT LOG -->
-        <div class="flex-grow flex flex-col min-h-0">
-            <h3 class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0"><i class="fas fa-history"></i> <span
-                    data-i18n="incident_log_title">Incident Log</span></h3>
-            <div class="overflow-y-auto custom-scroll flex-grow bg-gray-900 rounded border border-gray-700">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-gray-800 text-gray-400 text-[10px] sticky top-0">
-                        <tr>
-                            <th class="p-2" data-i18n="th_time">Time</th>
-                            <th class="p-2" data-i18n="th_type">Type</th>
-                            <th class="p-2" data-i18n="th_location">Location</th>
-                            <th class="p-2" data-i18n="th_details">Details</th>
-                            <th class="p-2" data-i18n="th_status">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="incident-table" class="text-[10px] text-gray-300 divide-y divide-gray-800">
-                        <!-- Rows added dynamically -->
-                    </tbody>
-                </table>
+            <!-- INCIDENT LOG (History) -->
+            <div class="flex-grow flex flex-col min-h-0 bg-gray-900 rounded border border-gray-700">
+                <h3 class="text-xs font-bold text-gray-400 uppercase p-2 shrink-0 border-b border-gray-800"><i
+                        class="fas fa-history"></i> <span data-i18n="incident_log_title">Incident Log</span></h3>
+                <div class="overflow-y-auto custom-scroll flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-800 text-gray-400 text-[10px] sticky top-0">
+                            <tr>
+                                <th class="p-2" data-i18n="th_time">Time</th>
+                                <th class="p-2" data-i18n="th_type">Type</th>
+                                <th class="p-2" data-i18n="th_details">Details</th>
+                                <th class="p-2" data-i18n="th_location">Location</th>
+                                <th class="p-2" data-i18n="th_status">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table" class="text-[10px] text-gray-300 divide-y divide-gray-800">
+                            <!-- Rows added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -696,6 +695,21 @@
                 </tr>
             `;
             table.insertAdjacentHTML('afterbegin', row);
+
+            // Also add to History Log (Right Panel)
+            const historyTable = document.getElementById('history-table');
+            if (historyTable) {
+                const historyRow = `
+                    <tr class="border-b border-gray-800 hover:bg-gray-800 text-[9px]">
+                        <td class="p-2 font-mono text-gray-500 whitespace-nowrap">${data.time}</td>
+                        <td class="p-2 font-bold text-gray-400"><span class="${badge} px-1 rounded">${data.type}</span></td>
+                        <td class="p-2 text-gray-400 truncate max-w-[100px]" title="${data.details}">${data.details || '-'}</td>
+                        <td class="p-2 font-mono text-blue-500 cursor-pointer" onclick="map.setView([${data.location}], 18)">${data.location}</td>
+                        <td class="p-2 text-gray-500">Active</td>
+                    </tr>
+                `;
+                historyTable.insertAdjacentHTML('afterbegin', historyRow);
+            }
         }
 
         // --- DISASTER LOGIC ---
