@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Face API -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
     <style>
         .animate-blink {
             animation: blink 1s infinite;
@@ -185,6 +187,13 @@
                 class="bg-purple-100 text-purple-800 p-4 rounded-xl shadow-sm border border-purple-200 flex flex-col lg:flex-row items-center gap-3 hover:bg-purple-200">
                 <i class="fas fa-user-friends text-2xl"></i>
                 <span class="font-bold text-xs lg:text-sm" data-i18n="btn_missing">Find People</span>
+            </button>
+
+            <!-- SCAN FACES (NEW) -->
+            <button onclick="openScannerModal()"
+                class="bg-pink-100 text-pink-800 p-4 rounded-xl shadow-sm border border-pink-200 flex flex-col lg:flex-row items-center gap-3 hover:bg-pink-200">
+                <i class="fas fa-camera-retro text-2xl"></i>
+                <span class="font-bold text-xs lg:text-sm">Scan Faces</span>
             </button>
 
             <!-- VOLUNTEER -->
@@ -425,6 +434,57 @@
             </div>
             <button onclick="document.getElementById('checklist-modal').classList.add('hidden')"
                 class="w-full bg-gray-800 text-white py-3 rounded-lg font-bold">Close</button>
+        </div>
+    </div>
+
+    <!-- SCANNER MODAL -->
+    <div id="scanner-modal"
+        class="hidden fixed inset-0 z-[1600] bg-black/80 flex items-center justify-center p-4 backdrop-blur-md">
+        <div
+            class="bg-gray-900 w-full max-w-lg rounded-xl p-4 shadow-2xl border border-pink-500 relative flex flex-col items-center">
+
+            <button onclick="closeScannerModal()" class="absolute top-2 right-2 text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+
+            <h2 class="text-xl font-bold text-pink-500 mb-2"><i class="fas fa-expand"></i> Face Scanner</h2>
+            <p class="text-xs text-gray-400 mb-4 text-center">Point camera at people to check against missing reports.
+            </p>
+
+            <div class="relative w-full aspect-video bg-black rounded overflow-hidden border border-gray-700">
+                <video id="scanner-video" class="w-full h-full object-cover" autoplay muted></video>
+                <canvas id="scanner-canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+
+                <div id="scan-status"
+                    class="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-[10px] rounded font-mono">
+                    Initializing...
+                </div>
+            </div>
+
+            <div class="mt-4 flex gap-3 w-full">
+                <button onclick="toggleScanner(true)" id="btn-start-scan"
+                    class="flex-1 bg-pink-600 hover:bg-pink-500 text-white py-2 rounded font-bold text-sm">
+                    <i class="fas fa-play"></i> Start
+                </button>
+                <button onclick="toggleScanner(false)" id="btn-stop-scan"
+                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded font-bold text-sm">
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+            </div>
+
+            <!-- RESULT AREA -->
+            <div id="scan-result"
+                class="hidden mt-3 w-full bg-green-900/30 border border-green-500 p-3 rounded flex items-center gap-3 animate-pulse">
+                <img id="match-img" src="" class="w-12 h-12 rounded object-cover border border-green-400">
+                <div>
+                    <div class="text-green-400 font-bold text-sm">MATCH FOUND!</div>
+                    <div id="match-name" class="text-white text-xs">Name: Unknown</div>
+                </div>
+                <button onclick="notifyMatch()"
+                    class="ml-auto bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-xs font-bold">
+                    NOTIFY
+                </button>
+            </div>
         </div>
     </div>
 
@@ -818,14 +878,23 @@
             }
 
             const sendMsg = (imgBase64 = null) => {
-                channel.postMessage({
+                const msgData = {
                     userId: USER_ID,
                     type: type,
                     details: details,
                     image: imgBase64,
                     location: `${startLoc[0]}, ${startLoc[1]}`,
                     time: new Date().toLocaleTimeString()
-                });
+                };
+
+                // Broadcast to others
+                channel.postMessage(msgData);
+
+                // Save locally for SELF (Sender) so I can scan immediately
+                if (type === 'MISSING_PERSON' && imgBase64) {
+                    saveMissingPerson(msgData);
+                }
+
                 alert("Report Submitted Successfully.");
                 document.getElementById('lost-modal').classList.add('hidden');
                 e.target.reset();
@@ -929,7 +998,267 @@
                 document.getElementById('status-banner').innerHTML = '<i class="fas fa-check-circle"></i> STATUS: SAFE';
                 alert("✅ Area is now safe.");
             }
+
+            // --- C. FOUND PERSON ALERT ---
+            if (data.type === 'FOUND_PERSON' && data.targetId === USER_ID) {
+                // If I am the person who reported it (USER_ID matches targetId)
+                alert(`🎉 GOOD NEWS!\n\nA Match has been found for your missing person report!\n\nMatched Location: ${data.location}\nTime: ${data.time}`);
+            }
+
+            // --- D. SYNC MISSING PERSONS ---
+            if (data.type === 'MISSING_PERSON' && data.image) {
+                // Save to local storage for matching
+                saveMissingPerson(data);
+            }
         };
+
+        // --- FACE RECOGNITION LOGIC ---
+
+        // 1. STATE
+        let isModelLoaded = false;
+        let isScanning = false;
+        let scannerInterval = null;
+        let currentMatch = null;
+
+        // Load persisted data
+        let knownFaces = JSON.parse(localStorage.getItem('saral_missing_faces') || '[]');
+
+        function saveMissingPerson(data) {
+            // Avoid duplicates
+            if (!knownFaces.find(f => f.userId === data.userId && f.details === data.details)) {
+                knownFaces.push(data);
+                localStorage.setItem('saral_missing_faces', JSON.stringify(knownFaces));
+                console.log("Stored new missing person for tracking:", data.details);
+            }
+        }
+
+        // 2. MODEL LOADING
+        async function loadFaceModels() {
+            if (isModelLoaded) return;
+            const status = document.getElementById('scan-status');
+            status.innerText = "Loading AI Models...";
+
+            try {
+                // Load from generic CDN
+                const MODEL_URL = 'https://vladmandic.github.io/face-api/model/';
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+
+                isModelLoaded = true;
+                status.innerText = "AI Ready. Starting Camera...";
+                console.log("FaceAPI Models Loaded");
+            } catch (e) {
+                console.error("Model Load Failed:", e);
+                status.innerText = "Error Loading AI";
+                alert("Failed to load AI models. Check internet connection.");
+            }
+        }
+
+        // 3. UI HANDLERS
+        async function openScannerModal() {
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            await loadFaceModels();
+            if (isModelLoaded) {
+                toggleScanner(true);
+            }
+        }
+
+        function closeScannerModal() {
+            toggleScanner(false);
+            document.getElementById('scanner-modal').classList.add('hidden');
+            document.getElementById('scan-result').classList.add('hidden');
+        }
+
+        async function toggleScanner(on) {
+            const video = document.getElementById('scanner-video');
+            const btnStart = document.getElementById('btn-start-scan');
+            const btnStop = document.getElementById('btn-stop-scan');
+            const status = document.getElementById('scan-status');
+
+            if (on) {
+                isScanning = true;
+                btnStart.classList.add('hidden');
+                btnStop.classList.remove('hidden');
+                status.innerText = "Accessing Camera...";
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                    video.srcObject = stream;
+
+                    video.onloadedmetadata = () => {
+                        status.innerText = "Scanning...";
+                        startDetectionLoop();
+                    };
+                } catch (err) {
+                    console.error("Camera Error:", err);
+                    status.innerText = `Error: ${err.name}`;
+                    alert(`Camera Error: ${err.name}\n${err.message}\n\nTrace: ${err.stack || 'No stack'}`);
+
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        alert("Permission explicitly denied. Please reset permissions in your browser address bar.");
+                    } else if (err.name === 'NotFoundError') {
+                        alert("No camera device found.");
+                    } else if (err.name === 'NotReadableError') {
+                        alert("Camera is maybe in use by another app.");
+                    } else if (location.protocol === 'file:') {
+                        alert("NOTE: Some browsers block camera on 'file://' URLs. Please try running this via a local server (http://localhost) or use Firefox.");
+                    }
+                }
+            } else {
+                isScanning = false;
+                btnStart.classList.remove('hidden');
+                btnStop.classList.add('hidden');
+                status.innerText = "Stopped";
+
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                clearInterval(scannerInterval);
+
+                // Clear Canvas
+                const canvas = document.getElementById('scanner-canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // 4. DETECTION LOOP
+        async function startDetectionLoop() {
+            const video = document.getElementById('scanner-video');
+            const canvas = document.getElementById('scanner-canvas');
+
+            // Match canvas size to video
+            faceapi.matchDimensions(canvas, { width: video.clientWidth, height: video.clientHeight });
+
+            // Prepare Labeled Descriptors from Stored Data
+            // Note: This is computationally expensive relative to size, do once if possible or lazy load
+            // For prototype, we do it on the fly or pre-calc
+
+            const labeledDescriptors = [];
+            const infoStatus = document.getElementById('scan-status');
+            infoStatus.innerText = `Processing ${knownFaces.length} ref faces...`;
+            console.log(`[Scan] Processing ${knownFaces.length} potential missing persons.`);
+
+            for (const person of knownFaces) {
+                if (!person.image) {
+                    console.warn(`[Scan] Person ${person.userId} has no image.`);
+                    continue;
+                }
+
+                try {
+                    // Create an invisible image element
+                    const img = document.createElement('img');
+                    img.src = person.image;
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                    });
+
+                    // 1. Try Default High-Accuracy Detector (SSD MobileNet V1)
+                    let detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+
+                    // 2. Fallback to TinyFaceDetector if SSD fails (sometimes works better on smaller/grainy images)
+                    if (!detection) {
+                        console.log(`[Scan] SSD failed for ${person.details}, trying TinyFace...`);
+                        detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                    }
+
+                    if (detection) {
+                        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(
+                            person.userId + "||" + person.details,
+                            [detection.descriptor]
+                        ));
+                        console.log(`[Scan] Successfully indexed face for: ${person.details}`);
+                    } else {
+                        console.warn(`[Scan] COULD NOT DETECT FACE in image for: ${person.details}`);
+                        // Optional: Alert user briefly?
+                    }
+                } catch (e) {
+                    console.error("[Scan] Error processing image:", e);
+                }
+            }
+
+            if (labeledDescriptors.length === 0) {
+                document.getElementById('scan-status').innerText = "No missing reports to match against.";
+                return; // Nothing to match
+            }
+
+            const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+            document.getElementById('scan-status').innerText = "Scanning Active...";
+
+            scannerInterval = setInterval(async () => {
+                if (!isScanning) return;
+
+                // Detect faces in video
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+
+                // Resize
+                const resizedDetections = faceapi.resizeResults(detections, { width: video.clientWidth, height: video.clientHeight });
+
+                // Draw
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                faceapi.draw.drawDetections(canvas, resizedDetections);
+
+                // Match
+                const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
+
+                results.forEach((result, i) => {
+                    const box = resizedDetections[i].detection.box;
+                    const drawBox = new faceapi.draw.DrawBox(box, { label: result.toString() });
+                    drawBox.draw(canvas);
+
+                    // Check for match
+                    if (result.label !== 'unknown') {
+                        // FOUND ONE!
+                        handleMatchFound(result.label);
+                    }
+                });
+
+            }, 500); // Check every 500ms
+        }
+
+        function handleMatchFound(label) {
+            // Debounce or just show UI
+            const [userId, details] = label.split('||'); // Format we stored
+
+            // Show result UI
+            const resultDiv = document.getElementById('scan-result');
+            const matchName = document.getElementById('match-name');
+            const matchImg = document.getElementById('match-img');
+
+            resultDiv.classList.remove('hidden');
+            matchName.innerText = details;
+
+            // Find original image
+            const original = knownFaces.find(f => f.userId === userId && f.details === details);
+            if (original) matchImg.src = original.image;
+
+            currentMatch = {
+                targetId: userId,
+                details: details,
+                // The finder's current location
+                location: `${startLoc[0]}, ${startLoc[1]}`
+            };
+        }
+
+        function notifyMatch() {
+            if (!currentMatch) return;
+
+            channel.postMessage({
+                type: 'FOUND_PERSON',
+                targetId: currentMatch.targetId,
+                details: currentMatch.details,
+                location: currentMatch.location,
+                time: new Date().toLocaleTimeString(),
+                finderId: USER_ID
+            });
+
+            alert("Owner Notified! Thank you for your help.");
+            closeScannerModal();
+        }
     </script>
 </body>
 
