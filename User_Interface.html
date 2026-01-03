@@ -44,6 +44,24 @@
             background-color: #68D391;
         }
     </style>
+    <!-- DEBUG OVERLAY -->
+    <div id="debug-console"
+        style="display:none; position:fixed; top:0; left:0; width:100%; background:rgba(0,0,0,0.8); color:lime; font-family:monospace; z-index:9999; padding:10px; pointer-events:none; font-size:12px;">
+    </div>
+    <script>
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            const consoleDiv = document.getElementById('debug-console');
+            consoleDiv.style.display = 'block';
+            consoleDiv.innerHTML += `<div>❌ ${msg} (Line ${lineNo})</div>`;
+            return false;
+        };
+        window.addEventListener('unhandledrejection', event => {
+            const consoleDiv = document.getElementById('debug-console');
+            consoleDiv.style.display = 'block';
+            consoleDiv.innerHTML += `<div>⚠️ Promise Rejection: ${event.reason}</div>`;
+        });
+        console.log("Debug Mode Enabled");
+    </script>
 </head>
 
 <body class="bg-gray-100 text-gray-800 font-sans pb-20">
@@ -604,10 +622,58 @@
             });
         }
     </script>
+    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const channel = new BroadcastChannel('saral_channel');
-        const randomNum = Math.floor(Math.random() * 10000);
-        const USER_ID = 'CITIZEN-' + randomNum;
+        const socket = io();
+        // Emit 'identify' event to tell server we are a USER, mostly for debugging
+        socket.emit('identify', { type: 'USER' });
+
+        const channel = {
+            postMessage: (data) => {
+                socket.emit(data.type, data);
+            },
+            onmessage: null
+        };
+        const events = ['LOCATION_UPDATE', 'SOS', 'TRIAGE_REPORT', 'RESOURCE_UPDATE', 'DISASTER_ALERT', 'DISASTER_CLEAR', 'MEDICAL_REPORT', 'HELP_REQUEST', 'VOLUNTEER_JOIN', 'FOUND_PERSON', 'MISSING_PERSON', 'DAMAGE_REPORT'];
+        events.forEach(event => {
+            socket.on(event, (data) => {
+                if (channel.onmessage) {
+                    channel.onmessage({ data: data });
+                }
+            });
+        });
+
+        // Listen for Help Acknowledgement
+        socket.on('SOS_ACKNOWLEDGE', (data) => {
+            if (data.userId === USER_ID) {
+                // Show Alert
+                alert("🚨 HELP IS ON THE WAY!\n\nControl Room has received your SOS and dispatched a team.");
+
+                // Update UI (Optional: Change SOS button text?)
+                const sosBtn = document.querySelector('button[onclick="sendSOS()"]');
+                if (sosBtn) {
+                    sosBtn.innerHTML = '<h2 class="text-xl font-black">HELP SENT</h2><p class="text-xs text-green-100">Rescue Team Inbound</p>';
+                    sosBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    sosBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'animate-pulse');
+                }
+            }
+        });
+
+        socket.on('SOS_RESOLVE', (data) => {
+            if (data.userId === USER_ID) {
+                alert("✅ INCIDENT RESOLVED\n\nControl Room has marked your emergency as resolved.");
+                // Reset UI
+                location.reload();
+            }
+        });
+        // PERSIST USER ID to prevent duplicate markers on refresh
+        let savedId = localStorage.getItem('saral_user_id');
+        if (!savedId) {
+            const randomNum = Math.floor(Math.random() * 10000);
+            savedId = 'CITIZEN-' + randomNum;
+            localStorage.setItem('saral_user_id', savedId);
+        }
+        const USER_ID = savedId;
         document.getElementById('user-id-display').innerText = `ID: ${USER_ID}`;
 
         let map;

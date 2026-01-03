@@ -75,7 +75,7 @@
                 <option value="bn">বাংলা (Bengali)</option>
             </select>
             <div class="text-right">
-                <div class="text-xs text-gray-400 font-bold uppercase" data-i18n="active_units">Active Units</div>
+                <div class="text-xs text-gray-400 font-bold uppercase" data-i18n="active_units">Active Users</div>
                 <div class="text-2xl font-mono font-bold text-green-400" id="active-users">0</div>
             </div>
             <span id="clock" class="text-gray-400 font-mono text-lg">00:00:00</span>
@@ -149,27 +149,7 @@
             </div>
 
             <!-- INFRASTRUCTURE LAYERS -->
-            <div class="bg-gray-700/50 p-3 rounded border border-gray-600">
-                <h3 class="text-xs font-bold text-gray-300 mb-2" data-i18n="infra_status_title">Infrastructure Status
-                </h3>
-                <div class="space-y-2">
-                    <label
-                        class="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-700 p-1 rounded">
-                        <span class="text-yellow-400"><i class="fas fa-bolt"></i> Power Grid</span>
-                        <input type="checkbox" class="accent-yellow-500" onchange="toggleLayer('power', this.checked)">
-                    </label>
-                    <label
-                        class="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-700 p-1 rounded">
-                        <span class="text-red-400"><i class="fas fa-road"></i> Road Blockages</span>
-                        <input type="checkbox" class="accent-red-500" onchange="toggleLayer('road', this.checked)">
-                    </label>
-                    <label
-                        class="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-700 p-1 rounded">
-                        <span class="text-orange-400"><i class="fas fa-building"></i> Damage Reports</span>
-                        <input type="checkbox" class="accent-orange-500" onchange="toggleLayer('damage', this.checked)">
-                    </label>
-                </div>
-            </div>
+
 
         </div>
 
@@ -410,8 +390,29 @@
             });
         }
     </script>
+    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const channel = new BroadcastChannel('saral_channel');
+        const socket = io();
+        const channel = {
+            postMessage: (data) => {
+                socket.emit(data.type, data);
+            },
+            onmessage: null
+        };
+        const events = ['LOCATION_UPDATE', 'SOS', 'TRIAGE_REPORT', 'RESOURCE_UPDATE', 'DISASTER_ALERT', 'DISASTER_CLEAR', 'MEDICAL_REPORT', 'HELP_REQUEST', 'VOLUNTEER_JOIN', 'FOUND_PERSON', 'MISSING_PERSON', 'DAMAGE_REPORT'];
+        events.forEach(event => {
+            socket.on(event, (data) => {
+                if (channel.onmessage) {
+                    channel.onmessage({ data: data });
+                }
+            });
+        });
+
+        // Listen for Active User Count
+        socket.on('ACTIVE_USERS_COUNT', (count) => {
+            document.getElementById('active-users').innerText = count;
+        });
+
         let map;
         const activeUsers = {};
         let triageCounts = { critical: 0, moderate: 0, minor: 0 };
@@ -582,13 +583,52 @@
             }
         }
 
+        // --- SOS WORKFLOW ---
+        function acknowledgeIncident(userId, btnId, rowId) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            // 1. Emit Event
+            channel.postMessage({ type: 'SOS_ACKNOWLEDGE', userId: userId });
+
+            // 2. Update UI (Change to Resolve Button)
+            btn.innerHTML = '<i class="fas fa-check"></i> Solved';
+            btn.className = "bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-xs shadow transition border border-green-500 font-bold ml-2";
+            btn.setAttribute('onclick', `resolveIncident('${userId}', '${rowId}')`);
+
+            // 3. Mark row as Ack
+            const row = document.getElementById(rowId);
+            if (row) row.classList.add('bg-blue-900/30');
+        }
+
+        function resolveIncident(userId, rowId) {
+            // 1. Emit Event
+            channel.postMessage({ type: 'SOS_RESOLVE', userId: userId });
+
+            // 2. Remove from Active Table
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => row.remove(), 500); // Wait for animation
+            }
+
+            // 3. Update Map (Reset marker to green)
+            if (activeUsers[userId] && activeUsers[userId].marker) {
+                activeUsers[userId].sosActive = false;
+                // It will turn green on next location update or we force it now
+                activeUsers[userId].marker.setStyle({ color: '#22c55e', fillColor: '#22c55e', radius: 4 });
+            }
+        }
+
         // --- 3. JITTER FUNCTION ---
         function getUniqueOffset(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
                 hash = str.charCodeAt(i) + ((hash << 5) - hash);
             }
-            return (hash % 100) / 400000;
+            // Use a much larger divisor for smaller offset (Minute difference)
+            // 400000 -> 1000000 (0.0001 vs 0.00001 degrees)
+            return (hash % 100) / 1000000;
         }
 
         // --- 4. MAP LOGIC ---
@@ -651,7 +691,31 @@
                 else if (data.type === 'HELP_REQUEST') tooltipText = `🙋 HELP: ${data.details}`;
                 else if (data.type === 'VOLUNTEER_JOIN') tooltipText = `🤝 VOL: ${data.details}`;
 
-                marker.bindTooltip(tooltipText, { direction: 'top', offset: [0, -5] });
+                if (data.type === 'SOS') marker.bindTooltip(tooltipText, { Permanent: true, direction: 'top', offset: [0, -5], className: 'bg-red-600 text-white font-bold' }).openTooltip();
+                else marker.bindTooltip(tooltipText, { direction: 'top', offset: [0, -5] });
+
+                // POPUP with Details Button
+                let popupContent = `
+                    <div class="text-xs font-mono p-1">
+                        <div class="font-bold border-b border-gray-600 pb-1 mb-1 ${data.type === 'SOS' ? 'text-red-400' : 'text-blue-400'}">${data.type.replace('_', ' ')}</div>
+                        <div class="text-gray-300 mb-1">${data.details}</div>
+                        <div class="text-gray-500 text-[10px]">${data.time}</div>
+                        ${(data.type === 'MISSING_PERSON' || data.image) ?
+                        `<button onclick="viewImage('${data.image}', '${data.type}', '${data.details}')" class="mt-2 w-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] py-1 rounded font-bold transition shadow-lg shadow-blue-900/50">
+                                <i class="fas fa-expand"></i> VIEW PHOTO
+                             </button>`
+                        : ''}
+                    </div>
+                `;
+                marker.bindPopup(popupContent, { className: 'custom-popup', minWidth: 200 });
+
+                // Click to open popup
+                marker.on('click', () => {
+                    marker.openPopup();
+                });
+
+                // Click to view details/image
+
 
                 // If it's a damage report, keep it longer or indefinitely (logic here just adds it)
                 activeUsers[data.userId] = { marker: marker, lastUpdate: Date.now() };
@@ -684,13 +748,25 @@
                     <td class="px-4 py-2 font-bold text-gray-300 text-xs"><span class="${badge} px-2 py-1 rounded shadow-sm">${data.type}</span></td>
                     <td class="px-4 py-2 text-xs text-gray-300">
                         <div class="font-bold text-gray-400">ID: ${data.userId}</div>
+                        ${data.image ?
+                    `<div class="mt-1 cursor-pointer group" onclick="viewImage('${data.image}', '${data.type}', '${data.details}')">
+                                <img src="${data.image}" class="w-12 h-12 object-cover rounded border border-gray-600 group-hover:border-blue-400 transition">
+                                <div class="text-[9px] text-blue-400 mt-0.5 group-hover:underline"><i class="fas fa-search"></i> View Image</div>
+                             </div>`
+                    : ''}
                         ${data.details || ''}
                     </td>
                     <td class="px-4 py-2 text-xs font-mono text-blue-400 cursor-pointer hover:text-blue-300" onclick="map.setView([${data.location}], 18)">
                         <i class="fas fa-map-marker-alt"></i> ${data.location}
                     </td>
                     <td class="px-4 py-2">
-                        <button onclick="this.parentElement.innerHTML='<span class=\\'text-green-500 font-bold text-xs\\'>ACKNOWLEDGED</span>'" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-xs shadow transition border border-blue-500">Ack</button>
+                        ${data.type === 'SOS' || data.type === 'MEDICAL_REPORT'
+                    ? `<button id="btn-${rowId}" onclick="acknowledgeIncident('${data.userId}', 'btn-${rowId}', '${rowId}')" 
+                                class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs shadow transition border border-blue-500">
+                                Acknowledge
+                               </button>`
+                    : '<span class="text-gray-500 text-xs">Logged</span>'
+                }
                     </td>
                 </tr>
             `;
@@ -840,30 +916,28 @@
             }
         }
 
-        // 2. Early Warning Feed Simulation
-        setInterval(() => {
-            // Randomize Wind
-            const wind = 15 + Math.floor(Math.random() * 10);
-            document.getElementById('feed-fire').innerText = `High (${wind}km/h Wind)`;
+        // 2. REAL-TIME API FEED (Replaces Simulation)
+        socket.on('DISASTER_FEED_UPDATE', (data) => {
+            // Update Cyclone
+            const cycloneEl = document.getElementById('feed-cyclone');
+            cycloneEl.innerText = data.cyclone;
 
-            // Randomize River
-            const riverChange = Math.floor(Math.random() * 20);
+            // Update River
             const riverEl = document.getElementById('feed-river');
-            riverEl.innerText = `Rising (+${10 + riverChange}cm)`;
-
-            if (riverChange > 15) {
+            riverEl.innerText = data.river;
+            if (data.river.includes('DANGER') || data.river.includes('Rising')) {
                 riverEl.className = "font-mono text-red-500 font-bold animate-pulse";
             } else {
-                riverEl.className = "font-mono text-red-400";
+                riverEl.className = "font-mono text-gray-300";
             }
 
-            // Randomize Cyclone occasionally
-            if (Math.random() > 0.7) {
-                const lvl = Math.floor(Math.random() * 5) + 1;
-                document.getElementById('feed-cyclone').innerText = `Lvl ${lvl} (Exp. ${Math.floor(Math.random() * 12)}h)`;
-            }
+            // Update Fire
+            const fireEl = document.getElementById('feed-fire');
+            fireEl.innerText = data.fire;
 
-        }, 3000);
+            // Optional: Update a 'Last Updated' indicator if needed
+            // console.log("Feed Updated:", data.timestamp, "Location:", data.location);
+        });
     </script>
     <!-- FEED DETAIL MODAL -->
     <div id="feed-modal"
@@ -889,6 +963,37 @@
             </div>
         </div>
     </div>
+
+    <!-- IMAGE VIEWER MODAL -->
+    <div id="image-modal"
+        class="hidden fixed inset-0 z-[2100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md"
+        onclick="closeImageModal()">
+        <div class="relative max-w-4xl w-full" onclick="event.stopPropagation()">
+            <button onclick="closeImageModal()"
+                class="absolute -top-12 right-0 text-white hover:text-gray-300 text-2xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <img id="full-image" src=""
+                class="w-full h-auto max-h-[80vh] object-contain rounded-lg shadow-2xl border border-gray-700">
+            <div class="mt-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+                <h3 class="text-lg font-bold text-white mb-2" id="image-title">Details</h3>
+                <p class="text-gray-300 text-sm" id="image-desc">No details provided.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function viewImage(imgUrl, title, desc) {
+            document.getElementById('full-image').src = imgUrl;
+            document.getElementById('image-title').innerText = title || 'Details';
+            document.getElementById('image-desc').innerText = desc || 'No description available.';
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+    </script>
 
 </body>
 
