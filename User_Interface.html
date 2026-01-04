@@ -80,28 +80,53 @@
     </div>
 
     <!-- NAVBAR -->
-    <nav class="bg-blue-900 text-white p-4 shadow-lg sticky top-0 z-50">
-        <div class="flex justify-between items-center">
+    <nav class="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white p-3 shadow-lg sticky top-0 z-50">
+        <div class="flex justify-between items-center max-w-7xl mx-auto">
+            <!-- LOGO & TITLE -->
             <div class="flex items-center gap-3">
-                <div class="bg-white/10 p-2 rounded-lg">
-                    <i class="fas fa-shield-virus text-2xl"></i>
+                <div class="bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
+                    <i class="fas fa-shield-virus text-2xl text-yellow-400"></i>
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold tracking-wide" data-i18n="app_name">SARAL (Smart Alert & Resilient Aid
-                        Layer)</h1>
-                    <p class="text-[10px] text-blue-200 uppercase" data-i18n="app_tagline">Smart Alert & Resilient Aid
-                        Layer</p>
+                    <!-- Mobile Title -->
+                    <h1 class="text-xl font-bold tracking-wide md:hidden flex items-center gap-2">
+                        SARAL
+                        <span class="text-[10px] bg-blue-700 px-1.5 py-0.5 rounded text-blue-200 font-normal">AI</span>
+                    </h1>
+                    <!-- Desktop Title -->
+                    <h1 class="text-xl font-bold tracking-wide hidden md:block" data-i18n="app_name">SARAL (System for
+                        Advanced Resilient Aid Layer)</h1>
+                    <p class="text-[10px] text-blue-200 uppercase hidden md:block" data-i18n="app_tagline">Smart Alert &
+                        Resilient Aid Layer</p>
                 </div>
             </div>
-            <div class="text-right flex items-center gap-3">
-                <select onchange="changeLanguage(this.value)"
-                    class="bg-blue-800 text-white text-xs p-1 rounded border border-blue-600 focus:outline-none">
-                    <option value="en">English</option>
-                    <option value="hi">हिंदी (Hindi)</option>
-                    <option value="mr">मराठी (Marathi)</option>
-                    <option value="bn">বাংলা (Bengali)</option>
-                </select>
-                <p class="text-xs font-mono bg-blue-800 px-2 py-1 rounded" id="user-id-display">ID: ...</p>
+
+            <!-- RIGHT CONTROLS -->
+            <div class="flex items-center gap-2 md:gap-4">
+                <div class="hidden md:block">
+                    <p class="text-[10px] text-blue-300 font-mono text-right">SESSION ID</p>
+                    <p class="text-xs font-mono bg-blue-950/50 px-2 py-1 rounded border border-blue-700/50"
+                        id="user-id-display">...</p>
+                </div>
+                <!-- Mobile ID (Icon only or simplified) -->
+                <div class="md:hidden">
+                    <p class="text-xs font-mono bg-blue-950/50 px-2 py-1 rounded border border-blue-700/50 max-w-[80px] truncate"
+                        id="user-id-display-mobile">...</p>
+                </div>
+
+                <div class="relative group">
+                    <select onchange="changeLanguage(this.value)"
+                        class="bg-blue-800/80 text-white text-xs py-1.5 pl-2 pr-6 rounded border border-blue-600 focus:outline-none appearance-none hover:bg-blue-700 transition cursor-pointer">
+                        <option value="en">🇬🇧 EN</option>
+                        <option value="hi">🇮🇳 HI</option>
+                        <option value="mr">🇮🇳 MR</option>
+                        <option value="bn">🇮🇳 BN</option>
+                    </select>
+                    <div
+                        class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-blue-300 text-xs">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
@@ -679,7 +704,11 @@
             localStorage.setItem('saral_user_id', savedId);
         }
         const USER_ID = savedId;
-        document.getElementById('user-id-display').innerText = `ID: ${USER_ID}`;
+        const idDisplay = document.getElementById('user-id-display');
+        const idDisplayMobile = document.getElementById('user-id-display-mobile');
+
+        if (idDisplay) idDisplay.innerText = USER_ID;
+        if (idDisplayMobile) idDisplayMobile.innerText = USER_ID;
 
         let map;
 
