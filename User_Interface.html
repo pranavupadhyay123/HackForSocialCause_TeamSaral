@@ -159,6 +159,25 @@
                 </label>
             </div>
 
+            <!-- VOICE GUARD TOGGLE -->
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gray-100 p-2 rounded-full text-gray-600" id="voice-icon">
+                        <i class="fas fa-microphone-slash"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-700">Voice Guard</h3>
+                        <p class="text-xs text-gray-500" id="voice-status">Inactive</p>
+                    </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" value="" class="sr-only peer" onchange="toggleVoiceGuard(this)">
+                    <div
+                        class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
+                    </div>
+                </label>
+            </div>
+
             <!-- HEALTH TRIAGE -->
             <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
                 <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-user-md"></i> <span
@@ -811,9 +830,15 @@
 
         // --- ACTIONS ---
         let meshTimer;
+
+        // 1. User Manual Trigger
         function sendSOS() {
             if (!confirm("Are you sure you want to send an SOS?")) return;
+            performSOS("Emergency Button Pressed");
+        }
 
+        // 2. The Actual SOS Execution Logic (Shared)
+        function performSOS(detailsText) {
             const isMeshMode = document.querySelector('input[type="checkbox"]').checked;
 
             if (isMeshMode) {
@@ -824,7 +849,7 @@
                 channel.postMessage({
                     userId: USER_ID,
                     type: 'SOS',
-                    details: 'Emergency Button Pressed',
+                    details: detailsText || 'Emergency Button Pressed',
                     location: `${startLoc[0]}, ${startLoc[1]}`,
                     time: new Date().toLocaleTimeString()
                 });
@@ -836,6 +861,130 @@
         function activateSOSState() {
             document.getElementById('status-banner').className = "bg-red-600 text-white p-3 text-center font-bold text-sm shadow-md animate-pulse";
             document.getElementById('status-banner').innerHTML = '<i class="fas fa-exclamation-triangle"></i> STATUS: SOS ACTIVE';
+        }
+
+        // --- VOICE GUARD LOGIC ---
+        let recognition;
+        let voiceSOSActive = false;
+        let voiceTimerInterval;
+
+        function toggleVoiceGuard(checkbox) {
+            const status = document.getElementById('voice-status');
+            const icon = document.getElementById('voice-icon');
+
+            if (checkbox.checked) {
+                status.innerText = "Listening (Active)";
+                status.classList.add('text-red-600', 'font-bold');
+                icon.innerHTML = '<i class="fas fa-microphone text-red-600 animate-pulse"></i>';
+                startListening();
+            } else {
+                status.innerText = "Inactive";
+                status.classList.remove('text-red-600', 'font-bold');
+                icon.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                stopListening();
+            }
+        }
+
+        async function startListening() {
+            // 1. Check for API Support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert("❌ Voice recognition is NOT supported in this browser. Please use Google Chrome.");
+                return;
+            }
+
+            // 2. EXPLICITLY Request Microphone Permission
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log("✅ Microphone permission granted.");
+
+                // We don't actually need the stream for SpeechRecognition, just the permission.
+                // Stop the stream tracks to release the mic, letting SpeechRecognition take over.
+                // (some browsers interfere if both are open, but usually it's fine to keep it open or close it)
+                // Let's keep it simple: Just having asked is usually enough for the 'allow' state to persist.
+                stream.getTracks().forEach(track => track.stop());
+
+                // 3. Start Speech Recognition
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = () => {
+                    console.log("🎤 Voice Monitoring ACTIVE.");
+                    document.getElementById('voice-status').innerText = "Listening (Active)";
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                    console.log("Voice Detected:", transcript);
+                    if (transcript.includes("help") || transcript.includes("bachao") || transcript.includes("emergency")) {
+                        triggerVoiceSOS();
+                    }
+                };
+
+                recognition.onerror = (e) => {
+                    console.error("Voice Error:", e.error);
+                    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                        alert("❌ Microphone Access Blocked. Please click the Lock icon in your URL bar and 'Reset Permissions'.");
+                    }
+                };
+
+                recognition.onend = () => {
+                    const isChecked = document.querySelector('input[onchange="toggleVoiceGuard(this)"]').checked;
+                    if (isChecked) {
+                        console.log("Restarting listener...");
+                        try { recognition.start(); } catch (e) { }
+                    }
+                };
+
+                recognition.start();
+
+            } catch (err) {
+                console.error("Mic Permission Error:", err);
+                alert("❌ Microphone Permission is REQUIRED for Voice SOS. Please 'Allow' access when prompted.");
+                // Untoggle the switch since it failed
+                document.querySelector('input[onchange="toggleVoiceGuard(this)"]').checked = false;
+                toggleVoiceGuard(document.querySelector('input[onchange="toggleVoiceGuard(this)"]'));
+            }
+        }
+
+        function stopListening() {
+            if (recognition) recognition.stop();
+        }
+
+        function triggerVoiceSOS() {
+            if (voiceSOSActive) return; // Already triggered
+            voiceSOSActive = true;
+
+            const overlay = document.getElementById('voice-overlay');
+            const timerEl = document.getElementById('voice-timer');
+            overlay.classList.remove('hidden');
+
+            let timeLeft = 5;
+            timerEl.innerText = timeLeft;
+
+            // Play Siren/Beep (Optional)
+            // const beep = new Audio('path/to/beep.mp3'); beep.play();
+
+            voiceTimerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(voiceTimerInterval);
+                    overlay.classList.add('hidden');
+                    performSOS("Voice Command: HELP DETECTED");
+                    voiceSOSActive = false;
+                    // Reset Checkbox? Maybe keep listening.
+                }
+            }, 1000);
+        }
+
+        function cancelVoiceSOS() {
+            clearInterval(voiceTimerInterval);
+            document.getElementById('voice-overlay').classList.add('hidden');
+            voiceSOSActive = false;
+            alert("SOS Cancelled.");
         }
 
         // --- MESH / SMS LOGIC ---
@@ -864,7 +1013,7 @@
 
             steps.forEach(s => {
                 setTimeout(() => {
-                    logs.innerHTML += `${s.msg}<br>`;
+                    logs.innerHTML += `${s.msg} <br>`;
                     logs.scrollTop = logs.scrollHeight;
                 }, s.t);
             });
@@ -1502,6 +1651,20 @@
 
             <button onclick="closeMeshOverlay()" class="text-gray-400 text-sm">Dismiss</button>
         </div>
+    </div>
+
+    <!-- VOICE SOS COUNTDOWN OVERLAY -->
+    <div id="voice-overlay"
+        class="hidden fixed inset-0 z-[3100] bg-red-600/90 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md animate-pulse">
+        <i class="fas fa-microphone text-6xl text-white mb-6 animate-bounce"></i>
+        <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-wide">Voice Distress Detected</h2>
+        <p class="text-white text-lg mb-8">Sending SOS in <span id="voice-timer"
+                class="font-mono font-bold text-4xl">5</span> seconds...</p>
+
+        <button onclick="cancelVoiceSOS()"
+            class="bg-white text-red-600 px-8 py-4 rounded-full font-bold text-xl shadow-2xl hover:scale-105 transition flex items-center gap-3">
+            <i class="fas fa-times-circle"></i> CANCEL SOS
+        </button>
     </div>
 </body>
 
