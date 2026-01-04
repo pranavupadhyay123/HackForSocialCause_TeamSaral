@@ -485,8 +485,13 @@
                     <i class="fas fa-play"></i> Start
                 </button>
                 <button onclick="toggleScanner(false)" id="btn-stop-scan"
-                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded font-bold text-sm">
+                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded font-bold text-sm hidden">
                     <i class="fas fa-stop"></i> Stop
+                </button>
+                <button onclick="flipCamera()" id="btn-flip-cam"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded font-bold text-sm"
+                    title="Flip Camera">
+                    <i class="fas fa-sync-alt"></i>
                 </button>
             </div>
 
@@ -1137,6 +1142,23 @@
             document.getElementById('scan-result').classList.add('hidden');
         }
 
+        // 3. SCAN FACE CAMERA
+        let currentFacingMode = 'environment'; // Default: Rear
+
+        async function flipCamera() {
+            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+            // Visual feedback
+            const btn = document.getElementById('btn-flip-cam');
+            btn.classList.add('animate-spin');
+            setTimeout(() => btn.classList.remove('animate-spin'), 500);
+
+            if (isScanning) {
+                // Restart with new mode
+                await toggleScanner(false);
+                setTimeout(() => toggleScanner(true), 500);
+            }
+        }
+
         async function toggleScanner(on) {
             const video = document.getElementById('scanner-video');
             const btnStart = document.getElementById('btn-start-scan');
@@ -1150,7 +1172,9 @@
                 status.innerText = "Accessing Camera...";
 
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: currentFacingMode }
+                    });
                     video.srcObject = stream;
 
                     video.onloadedmetadata = () => {
