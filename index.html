@@ -884,7 +884,16 @@
             const needed = keys.filter(k => resources[k].req > 0);
 
             if (needed.length === 0) {
-                alert("All requests fulfilled! No dispatch needed.");
+                // If no specific requests, allow Manual Proactive Dispatch (e.g. sending to forward operating base)
+                // Just pick 'water' or random, or ask user? Let's just dispatch 'Water' as default or all.
+                // For simplicity: Dispatch 50 units of Water.
+                if (resources.water.avail >= 50) {
+                    resources.water.avail -= 50;
+                    updateResourceUI();
+                    alert("🚚 Manual Dispatch: Sent 50 Water Packs to Forward Base.");
+                } else {
+                    alert("Not enough Water for manual dispatch.");
+                }
                 return;
             }
 

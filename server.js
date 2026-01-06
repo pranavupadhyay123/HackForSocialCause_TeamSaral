@@ -59,6 +59,11 @@ io.on('connection', (socket) => {
         io.emit('TRIAGE_REPORT', data);
     });
 
+    socket.on('MEDICAL_REPORT', (data) => {
+        console.log('MEDICAL REPORT:', data);
+        io.emit('MEDICAL_REPORT', data);
+    });
+
     // Handle Resource Updates
     socket.on('RESOURCE_UPDATE', (data) => {
         io.emit('RESOURCE_UPDATE', data);

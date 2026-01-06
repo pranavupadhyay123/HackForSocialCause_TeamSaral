@@ -833,7 +833,8 @@
 
         // 1. User Manual Trigger
         function sendSOS() {
-            if (!confirm("Are you sure you want to send an SOS?")) return;
+            // Removed blocking confirm for better UX/Automation.
+            // In production, use a "Slide to SOS" or "Hold for 3s" UI.
             performSOS("Emergency Button Pressed");
         }
 
