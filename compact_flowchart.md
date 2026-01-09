@@ -1,4 +1,4 @@
-# SARAL System - Core Workflow
+# Saral: Smart Alert and Resilient Aid Layer - Core Workflow
 
 A high-level, linear overview of the disaster management lifecycle in 5 key stages.
 

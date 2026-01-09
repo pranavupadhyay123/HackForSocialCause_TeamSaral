@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SARAL (Smart Alert & Resilient Aid Layer) - Central Command</title>
+    <title>Saral: Smart Alert and Resilient Aid Layer - Central Command</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -49,28 +49,27 @@
     </style>
 </head>
 
-<body class="bg-gray-900 text-white font-sans min-h-screen lg:h-screen lg:overflow-hidden flex flex-col">
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen lg:h-screen lg:overflow-hidden flex flex-col">
 
     <!-- NAVBAR -->
-    <nav class="bg-gray-900 text-white p-3 shadow-lg border-b border-gray-700 flex-shrink-0 relative z-20">
+    <nav
+        class="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white p-3 shadow-lg border-b border-blue-800 flex-shrink-0 relative z-20">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <!-- BRAND -->
             <div class="flex items-center gap-3">
-                <div class="bg-blue-600/20 p-2 rounded-lg border border-blue-500/50">
-                    <i class="fas fa-shield-virus text-2xl text-blue-400"></i>
+                <div class="bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
+                    <i class="fas fa-shield-virus text-2xl text-yellow-400"></i>
                 </div>
                 <div>
                     <!-- Mobile Title -->
-                    <h1
-                        class="text-xl font-black tracking-wider bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent md:hidden">
+                    <h1 class="text-xl font-bold tracking-wide md:hidden flex items-center gap-2">
                         SARAL COMMAND
                     </h1>
                     <!-- Desktop Title -->
-                    <h1 class="hidden md:block text-2xl font-black tracking-wider bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent"
-                        data-i18n="admin_title">
-                        SARAL (System for Advanced Resilient Aid Layer) COMMAND CENTER
+                    <h1 class="hidden md:block text-2xl font-bold tracking-wide text-white" data-i18n="admin_title">
+                        Saral: Smart Alert and Resilient Aid Layer COMMAND CENTER
                     </h1>
-                    <p class="hidden md:block text-[10px] text-gray-400 uppercase tracking-[0.2em]"
+                    <p class="hidden md:block text-[10px] text-blue-200 uppercase tracking-[0.2em]"
                         data-i18n="admin_subtitle">Disaster
                         Management System</p>
                 </div>
@@ -79,7 +78,7 @@
             <!-- CONTROLS -->
             <div class="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
                 <select onchange="changeLanguage(this.value)"
-                    class="bg-gray-800 text-white text-xs p-2 rounded border border-gray-600 focus:outline-none">
+                    class="bg-blue-800 text-white text-xs p-2 rounded border border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-400">
                     <option value="en">🇬🇧 EN</option>
                     <option value="hi">🇮🇳 HI</option>
                     <option value="mr">🇮🇳 MR</option>
@@ -87,11 +86,11 @@
                 </select>
 
                 <div class="flex items-center gap-4">
-                    <div class="text-right bg-gray-800/50 px-2 py-1 rounded border border-gray-700">
-                        <div class="text-[10px] text-gray-400 font-bold uppercase" data-i18n="active_units">Users</div>
+                    <div class="text-right bg-blue-800/50 px-2 py-1 rounded border border-blue-700">
+                        <div class="text-[10px] text-blue-300 font-bold uppercase" data-i18n="active_units">Users</div>
                         <div class="text-xl font-mono font-bold text-green-400 leading-none" id="active-count">0</div>
                     </div>
-                    <span id="clock" class="hidden sm:block text-gray-400 font-mono text-lg">00:00:00</span>
+                    <span id="clock" class="hidden sm:block text-blue-200 font-mono text-lg">00:00:00</span>
                 </div>
             </div>
         </div>
@@ -102,38 +101,42 @@
 
         <!-- LEFT PANEL: ALERTS & CONTROLS -->
         <div
-            class="bg-gray-800 p-4 rounded-xl shadow-lg lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden custom-scroll overflow-y-auto">
+            class="bg-white p-4 rounded-xl shadow-lg border border-gray-200 lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden custom-scroll overflow-y-auto">
 
             <!-- LIVE SITUATION FEED -->
-            <div class="bg-blue-900/20 border border-blue-700 p-3 rounded-lg">
-                <h3 class="text-xs font-bold text-blue-400 uppercase mb-2"><i class="fas fa-rss"></i> <span
+            <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                <h3 class="text-xs font-bold text-blue-700 uppercase mb-2"><i class="fas fa-rss"></i> <span
                         data-i18n="live_feed_title">Live Situation Feed</span></h3>
                 <div class="space-y-2 text-xs" id="live-feed-container">
-                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded">
-                        <span class="text-yellow-400"><i class="fas fa-wind"></i> Cyclone Alert</span>
-                        <span class="font-mono text-gray-300" id="feed-cyclone">Lvl 3 (Exp. 4h)</span>
+                    <div
+                        class="flex justify-between items-center bg-white p-2 rounded border border-blue-100 shadow-sm">
+                        <span class="text-yellow-600 font-semibold"><i class="fas fa-wind"></i> Cyclone Alert</span>
+                        <span class="font-mono text-gray-600" id="feed-cyclone">Lvl 3 (Exp. 4h)</span>
                     </div>
-                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded">
-                        <span class="text-orange-400"><i class="fas fa-fire"></i> Forest Fire Risk</span>
-                        <span class="font-mono text-gray-300" id="feed-fire">High (18km/h Wind)</span>
+                    <div
+                        class="flex justify-between items-center bg-white p-2 rounded border border-blue-100 shadow-sm">
+                        <span class="text-orange-600 font-semibold"><i class="fas fa-fire"></i> Forest Fire Risk</span>
+                        <span class="font-mono text-gray-600" id="feed-fire">High (18km/h Wind)</span>
                     </div>
-                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded">
-                        <span class="text-blue-400"><i class="fas fa-water"></i> River Level</span>
-                        <span class="font-mono text-red-400 animate-pulse" id="feed-river">Rising (+12cm)</span>
+                    <div
+                        class="flex justify-between items-center bg-white p-2 rounded border border-blue-100 shadow-sm">
+                        <span class="text-blue-600 font-semibold"><i class="fas fa-water"></i> River Level</span>
+                        <span class="font-mono text-red-500 animate-pulse font-bold" id="feed-river">Rising
+                            (+12cm)</span>
                     </div>
                 </div>
             </div>
 
             <!-- DISASTER CONTROL -->
-            <div class="bg-red-900/20 border border-red-700 p-4 rounded-xl shadow-lg relative shrink-0">
-                <h2 class="text-lg font-bold text-red-400 mb-3"><i class="fas fa-bullhorn"></i> <span
+            <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow-sm relative shrink-0">
+                <h2 class="text-lg font-bold text-red-700 mb-3"><i class="fas fa-bullhorn"></i> <span
                         data-i18n="broadcast_alert_title">Broadcast Alert</span></h2>
                 <div class="space-y-3">
                     <div>
-                        <label class="text-[10px] text-red-300 uppercase font-bold"
+                        <label class="text-[10px] text-red-700 uppercase font-bold"
                             data-i18n="lbl_disaster_type">Disaster Type</label>
                         <select id="disaster-type"
-                            class="w-full bg-gray-900 border border-red-500 rounded p-2 text-sm text-white">
+                            class="w-full bg-white border border-red-300 rounded p-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-red-500">
                             <option value="FLOOD">🌊 Flood / Tsunami</option>
                             <option value="EARTHQUAKE">📉 Earthquake</option>
                             <option value="FIRE">🔥 Urban Fire</option>
@@ -141,10 +144,10 @@
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] text-red-300 uppercase font-bold" data-i18n="lbl_impact_zone">Impact
+                        <label class="text-[10px] text-red-700 uppercase font-bold" data-i18n="lbl_impact_zone">Impact
                             Zone</label>
                         <select id="disaster-zone"
-                            class="w-full bg-gray-900 border border-red-500 rounded p-2 text-sm text-white">
+                            class="w-full bg-white border border-red-300 rounded p-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-red-500">
                             <option value="ZONE-A">Zone A (Urban Center)</option>
                             <option value="ZONE-B">Zone B (Coastal/River)</option>
                             <option value="ZONE-C">Zone C (Industrial)</option>
@@ -152,12 +155,12 @@
                         </select>
                     </div>
                     <button onclick="declareDisaster()"
-                        class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded shadow-lg border border-red-400 active:scale-95 transition flex items-center justify-center gap-2 text-sm"
+                        class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded shadow border border-red-500 active:scale-95 transition flex items-center justify-center gap-2 text-sm"
                         data-i18n="btn_declare_emergency">
                         <i class="fas fa-tower-broadcast"></i> SEND ALERT
                     </button>
                     <button onclick="clearDisaster()" id="clear-btn"
-                        class="hidden w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded shadow border border-green-400 text-sm"
+                        class="hidden w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded shadow border border-green-500 text-sm"
                         data-i18n="btn_clear_all">
                         ✅ ALL CLEAR
                     </button>
@@ -174,34 +177,35 @@
 
             <!-- MAP -->
             <div
-                class="bg-gray-800 p-2 rounded-xl shadow-lg border border-gray-700 relative flex-shrink-0 h-[400px] lg:h-[50%]">
+                class="bg-white p-2 rounded-xl shadow-lg border border-gray-200 relative flex-shrink-0 h-[400px] lg:h-[50%]">
                 <div
-                    class="absolute top-4 right-4 z-[500] bg-black/80 px-3 py-1 rounded text-xs font-mono border border-gray-500 shadow-lg">
-                    <span data-i18n="active_units"></span>Active Signals</span>: <span id="active-count"
-                        class="text-green-400 font-bold text-lg">0</span>
+                    class="absolute top-4 right-4 z-[500] bg-white/90 px-3 py-1 rounded text-xs font-mono border border-gray-300 shadow-md backdrop-blur-sm">
+                    <span class="text-gray-700"><span data-i18n="active_units"></span>Active Signals</span>: <span
+                        id="active-count-map" class="text-green-600 font-bold text-lg">0</span>
                 </div>
-                <div id="admin-map" class="rounded border border-gray-600"></div>
+                <div id="admin-map" class="rounded border border-gray-300 shadow-inner"></div>
             </div>
 
             <!-- INCIDENT TABLE -->
-            <div class="bg-white text-gray-800 rounded-xl shadow-lg flex-1 overflow-hidden flex flex-col">
-                <div class="flex justify-between items-center p-3 border-b bg-gray-50">
+            <div
+                class="bg-white text-gray-900 rounded-xl shadow-lg border border-gray-200 flex-1 overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center p-3 border-b border-gray-200 bg-gray-50">
                     <h2 class="text-lg font-bold text-gray-800 border-l-4 border-blue-600 pl-3">Live Incident Feed</h2>
                     <button onclick="document.getElementById('incident-table').innerHTML = ''"
-                        class="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 font-bold">Clear</button>
+                        class="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 font-bold border border-gray-300">Clear</button>
                 </div>
                 <div class="overflow-auto flex-1 custom-scroll">
                     <table class="min-w-full text-sm text-left">
                         <thead class="bg-gray-100 text-gray-600 uppercase text-xs sticky top-0 z-10 shadow-sm">
                             <tr>
-                                <th class="px-4 py-2">Time</th>
-                                <th class="px-4 py-2">Type</th>
-                                <th class="px-4 py-2">Details</th>
-                                <th class="px-4 py-2">Location</th>
-                                <th class="px-4 py-2">Action</th>
+                                <th class="px-4 py-2 border-b border-gray-200">Time</th>
+                                <th class="px-4 py-2 border-b border-gray-200">Type</th>
+                                <th class="px-4 py-2 border-b border-gray-200">Details</th>
+                                <th class="px-4 py-2 border-b border-gray-200">Location</th>
+                                <th class="px-4 py-2 border-b border-gray-200">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="incident-table">
+                        <tbody id="incident-table" class="divide-y divide-gray-100">
                         </tbody>
                     </table>
                 </div>
@@ -210,72 +214,73 @@
 
         <!-- RIGHT PANEL: RESOURCES & TRIAGE -->
         <div
-            class="bg-gray-800 p-4 rounded-xl shadow-lg lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden custom-scroll overflow-y-auto">
+            class="bg-white p-4 rounded-xl shadow-lg border border-gray-200 lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden custom-scroll overflow-y-auto">
 
             <!-- RESOURCE LOGISTICS -->
-            <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 shrink-0">
-                <h3 class="text-xs font-bold text-purple-400 uppercase mb-2"><i class="fas fa-boxes"></i> <span
+            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 shrink-0">
+                <h3 class="text-xs font-bold text-purple-700 uppercase mb-2"><i class="fas fa-boxes"></i> <span
                         data-i18n="resource_logistics_title">Resource Logistics</span></h3>
                 <div class="space-y-2 text-xs">
-                    <div class="flex justify-between items-center border-b border-gray-800 pb-1">
-                        <span class="text-blue-300">💧 Water Packs</span>
+                    <div class="flex justify-between items-center border-b border-gray-200 pb-1">
+                        <span class="text-blue-600 font-semibold">💧 Water Packs</span>
                         <div class="text-right">
-                            <span class="text-green-400 font-mono" id="res-water-avail">1000</span>
-                            <span class="text-gray-500">/</span>
-                            <span class="text-red-400 font-mono" id="res-water-req">0</span>
+                            <span class="text-green-600 font-mono font-bold" id="res-water-avail">5000</span>
+                            <span class="text-gray-400">/</span>
+                            <span class="text-red-500 font-mono font-bold" id="res-water-req">0</span>
                         </div>
                     </div>
-                    <div class="flex justify-between items-center border-b border-gray-800 pb-1">
-                        <span class="text-orange-300">🧣 Blankets</span>
+                    <div class="flex justify-between items-center border-b border-gray-200 pb-1">
+                        <span class="text-orange-600 font-semibold">🧣 Blankets</span>
                         <div class="text-right">
-                            <span class="text-green-400 font-mono" id="res-blankets-avail">1000</span>
-                            <span class="text-gray-500">/</span>
-                            <span class="text-red-400 font-mono" id="res-blankets-req">0</span>
+                            <span class="text-green-600 font-mono font-bold" id="res-blankets-avail">500</span>
+                            <span class="text-gray-400">/</span>
+                            <span class="text-red-500 font-mono font-bold" id="res-blankets-req">0</span>
                         </div>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-red-300">🚑 Ambulances</span>
+                        <span class="text-red-600 font-semibold">🚑 Ambulances</span>
                         <div class="text-right">
-                            <span class="text-green-400 font-mono" id="res-amb-avail">1000</span>
-                            <span class="text-gray-500">/</span>
-                            <span class="text-red-400 font-mono" id="res-amb-req">0</span>
+                            <span class="text-green-600 font-mono font-bold" id="res-amb-avail">20</span>
+                            <span class="text-gray-400">/</span>
+                            <span class="text-red-500 font-mono font-bold" id="res-amb-req">0</span>
                         </div>
                     </div>
                 </div>
                 <div class="flex gap-2 mt-3">
                     <button onclick="dispatchResource()"
-                        class="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-1 rounded text-[10px] font-bold"
+                        class="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-1.5 rounded text-[10px] font-bold shadow-sm"
                         data-i18n="btn_dispatch">DISPATCH</button>
                     <button onclick="markDelivered()"
-                        class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-1 rounded text-[10px] font-bold"
+                        class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-1.5 rounded text-[10px] font-bold shadow-sm"
                         data-i18n="btn_restock">RESTOCK</button>
                 </div>
             </div>
 
             <!-- REGISTERED VOLUNTEERS (New Panel) -->
-            <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 shrink-0 flex flex-col gap-2 min-h-[150px]">
-                <h3 class="text-xs font-bold text-blue-400 uppercase"><i class="fas fa-users"></i> Registered Volunteers
+            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 shrink-0 flex flex-col gap-2 min-h-[150px]">
+                <h3 class="text-xs font-bold text-blue-700 uppercase"><i class="fas fa-users"></i> Registered Volunteers
                 </h3>
                 <div id="volunteer-list" class="space-y-2 overflow-y-auto custom-scroll flex-grow pr-1">
                     <!-- Dynamic Volunteer Cards -->
                 </div>
             </div>
             <!-- INCIDENT LOG (History) -->
-            <div class="flex-grow flex flex-col min-h-0 bg-gray-900 rounded border border-gray-700">
-                <h3 class="text-xs font-bold text-gray-400 uppercase p-2 shrink-0 border-b border-gray-800"><i
-                        class="fas fa-history"></i> <span data-i18n="incident_log_title">Incident Log</span></h3>
+            <div class="flex-grow flex flex-col min-h-0 bg-white rounded border border-gray-200">
+                <h3 class="text-xs font-bold text-gray-500 uppercase p-2 shrink-0 border-b border-gray-200 bg-gray-50">
+                    <i class="fas fa-history"></i> <span data-i18n="incident_log_title">Incident Log</span>
+                </h3>
                 <div class="overflow-y-auto custom-scroll flex-grow">
                     <table class="w-full text-left border-collapse">
-                        <thead class="bg-gray-800 text-gray-400 text-[10px] sticky top-0">
+                        <thead class="bg-gray-100 text-gray-600 text-[10px] sticky top-0 shadow-sm">
                             <tr>
-                                <th class="p-2" data-i18n="th_time">Time</th>
-                                <th class="p-2" data-i18n="th_type">Type</th>
-                                <th class="p-2" data-i18n="th_details">Details</th>
-                                <th class="p-2" data-i18n="th_location">Location</th>
-                                <th class="p-2" data-i18n="th_status">Status</th>
+                                <th class="p-2 border-b border-gray-200" data-i18n="th_time">Time</th>
+                                <th class="p-2 border-b border-gray-200" data-i18n="th_type">Type</th>
+                                <th class="p-2 border-b border-gray-200" data-i18n="th_details">Details</th>
+                                <th class="p-2 border-b border-gray-200" data-i18n="th_location">Location</th>
+                                <th class="p-2 border-b border-gray-200" data-i18n="th_status">Status</th>
                             </tr>
                         </thead>
-                        <tbody id="history-table" class="text-[10px] text-gray-300 divide-y divide-gray-800">
+                        <tbody id="history-table" class="text-[10px] text-gray-700 divide-y divide-gray-100">
                             <!-- Rows added dynamically -->
                         </tbody>
                     </table>
@@ -290,7 +295,7 @@
     <script>
         const translations = {
             en: {
-                admin_title: "SARAL (Smart Alert & Resilient Aid Layer) COMMAND CENTER",
+                admin_title: "Saral: Smart Alert and Resilient Aid Layer COMMAND CENTER",
                 admin_subtitle: "Disaster Management System",
                 active_units: "Active Units",
                 live_feed_title: "Live Situation Feed",
@@ -427,7 +432,10 @@
 
         // Listen for Active User Count
         socket.on('ACTIVE_USERS_COUNT', (count) => {
-            document.getElementById('active-users').innerText = count;
+            document.getElementById('active-count').innerText = count;
+            // Also update map counter if duplicating
+            const mapCount = document.getElementById('active-count-map');
+            if (mapCount) mapCount.innerText = count;
         });
 
         let map;
@@ -441,8 +449,8 @@
         window.addEventListener('load', () => {
             // Default view: India Center
             map = L.map('admin-map').setView([20.5937, 78.9629], 5);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
         });
 
@@ -864,9 +872,9 @@
         // 1. Resource Logistics
         // 1. Resource Logistics
         const resources = {
-            water: { avail: 1000, req: 0, name: "Water Packs" },
-            blankets: { avail: 1000, req: 0, name: "Blankets" },
-            amb: { avail: 1000, req: 0, name: "Ambulances" }
+            water: { avail: 5000, max: 5000, req: 0, name: "Water Packs" },
+            blankets: { avail: 500, max: 500, req: 0, name: "Blankets" },
+            amb: { avail: 20, max: 20, req: 0, name: "Ambulances" }
         };
 
         function updateResourceUI() {
@@ -919,16 +927,17 @@
         }
 
         function markDelivered() {
-            // Smart Restock: Refill all resources up to 1000 MAX
+            // Smart Restock: Refill all resources up to their specific MAX
             let report = [];
             const keys = Object.keys(resources);
             let anyRestocked = false;
 
             keys.forEach(key => {
                 const current = resources[key].avail;
-                if (current < 1000) {
-                    const diff = 1000 - current;
-                    resources[key].avail = 1000;
+                const max = resources[key].max || 1000;
+                if (current < max) {
+                    const diff = max - current;
+                    resources[key].avail = max;
                     report.push(`+${diff} ${resources[key].name}`);
                     anyRestocked = true;
                 }
@@ -938,7 +947,7 @@
                 updateResourceUI();
                 alert(`📦 Smart Restock Complete:\n${report.join('\n')}`);
             } else {
-                alert("📦 Storage Full. No restock needed (All 1000).");
+                alert("📦 Storage Full. No restock needed.");
             }
         }
 

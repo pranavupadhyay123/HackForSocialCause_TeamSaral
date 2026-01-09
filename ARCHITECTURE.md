@@ -1,4 +1,4 @@
-# System Architecture - SARAL (Smart Alert & Resilient Aid Layer)
+# System Architecture - Saral: Smart Alert and Resilient Aid Layer
 
 ## 🏗️ Overview
 

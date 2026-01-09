@@ -1,4 +1,4 @@
-# SARAL (Smart Alert & Resilient Aid Layer)
+# Saral: Smart Alert and Resilient Aid Layer
 
 **SARAL** is a disaster management platform connecting a central **Command Center** with a **Citizen App** for real-time coordination during emergencies.
 

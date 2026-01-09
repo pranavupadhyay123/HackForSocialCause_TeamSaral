@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SARAL (Smart Alert & Resilient Aid Layer) - Citizen App</title>
+    <title>Saral: Smart Alert and Resilient Aid Layer - Citizen App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -94,8 +94,9 @@
                         <span class="text-[10px] bg-blue-700 px-1.5 py-0.5 rounded text-blue-200 font-normal">AI</span>
                     </h1>
                     <!-- Desktop Title -->
-                    <h1 class="text-xl font-bold tracking-wide hidden md:block" data-i18n="app_name">SARAL (System for
-                        Advanced Resilient Aid Layer)</h1>
+                    <h1 class="text-xl font-bold tracking-wide hidden md:block" data-i18n="app_name">Saral: Smart Alert
+                        and Resilient Aid Layer</h1>
+
                     <p class="text-[10px] text-blue-200 uppercase hidden md:block" data-i18n="app_tagline">Smart Alert &
                         Resilient Aid Layer</p>
                 </div>
@@ -178,6 +179,50 @@
                 </label>
             </div>
 
+            <!-- MOBILE ACTIONS (Moved for specific layout) -->
+            <div class="lg:hidden space-y-4 mb-4">
+                <!-- Duplicate SOS Button -->
+                <button onclick="sendSOS()"
+                    class="w-full bg-red-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-4 hover:bg-red-700">
+                    <i class="fas fa-broadcast-tower text-3xl animate-pulse"></i>
+                    <div class="text-left">
+                        <h2 class="text-xl font-black" data-i18n="sos_full_title">SOS EMERGENCY</h2>
+                        <p class="text-xs text-red-100" data-i18n="sos_full_desc">Broadcast Distress Signal</p>
+                    </div>
+                </button>
+
+                <!-- Duplicate Action Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- REPORT DAMAGE -->
+                    <button onclick="document.getElementById('damage-modal').classList.remove('hidden')"
+                        class="bg-orange-100 text-orange-800 p-4 rounded-xl shadow-sm border border-orange-200 flex flex-col items-center gap-2 hover:bg-orange-200 text-center">
+                        <i class="fas fa-house-damage text-2xl"></i>
+                        <span class="font-bold text-xs" data-i18n="btn_damage">Report Damage</span>
+                    </button>
+
+                    <!-- MISSING PERSONS -->
+                    <button onclick="document.getElementById('lost-modal').classList.remove('hidden')"
+                        class="bg-purple-100 text-purple-800 p-4 rounded-xl shadow-sm border border-purple-200 flex flex-col items-center gap-2 hover:bg-purple-200 text-center">
+                        <i class="fas fa-user-friends text-2xl"></i>
+                        <span class="font-bold text-xs" data-i18n="btn_missing">Find People</span>
+                    </button>
+
+                    <!-- SCAN FACES -->
+                    <button onclick="openScannerModal()"
+                        class="bg-pink-100 text-pink-800 p-4 rounded-xl shadow-sm border border-pink-200 flex flex-col items-center gap-2 hover:bg-pink-200 text-center">
+                        <i class="fas fa-camera-retro text-2xl"></i>
+                        <span class="font-bold text-xs">Scan Faces</span>
+                    </button>
+
+                    <!-- VOLUNTEER -->
+                    <button onclick="document.getElementById('volunteer-modal').classList.remove('hidden')"
+                        class="bg-teal-100 text-teal-800 p-4 rounded-xl shadow-sm border border-teal-200 flex flex-col items-center gap-2 hover:bg-teal-200 text-center">
+                        <i class="fas fa-hands-helping text-2xl"></i>
+                        <span class="font-bold text-xs" data-i18n="btn_volunteer">Volunteer</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- HEALTH TRIAGE -->
             <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
                 <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-user-md"></i> <span
@@ -226,7 +271,7 @@
 
             <!-- SOS BUTTON -->
             <button onclick="sendSOS()"
-                class="w-full bg-red-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-4 hover:bg-red-700">
+                class="hidden lg:flex w-full bg-red-600 text-white p-4 rounded-xl shadow-lg active:scale-95 transition items-center justify-center gap-4 hover:bg-red-700">
                 <i class="fas fa-broadcast-tower text-3xl animate-pulse"></i>
                 <div class="text-left">
                     <h2 class="text-xl font-black" data-i18n="sos_full_title">SOS EMERGENCY</h2>
@@ -236,7 +281,7 @@
         </div>
 
         <!-- RIGHT COLUMN: ACTIONS -->
-        <div class="lg:col-span-3 grid grid-cols-2 lg:grid-cols-1 gap-3 h-fit">
+        <div class="hidden lg:grid lg:col-span-3 grid-cols-2 lg:grid-cols-1 gap-3 h-fit">
             <!-- REPORT DAMAGE -->
             <button onclick="document.getElementById('damage-modal').classList.remove('hidden')"
                 class="bg-orange-100 text-orange-800 p-4 rounded-xl shadow-sm border border-orange-200 flex flex-col lg:flex-row items-center gap-3 hover:bg-orange-200">
@@ -558,7 +603,7 @@
     <script>
         const translations = {
             en: {
-                app_name: "SARAL (Smart Alert & Resilient Aid Layer)",
+                app_name: "Saral: Smart Alert and Resilient Aid Layer",
                 app_tagline: "Smart Alert & Resilient Aid Layer",
                 status_safe: "STATUS: SAFE",
                 conn_mode: "Connection Mode",

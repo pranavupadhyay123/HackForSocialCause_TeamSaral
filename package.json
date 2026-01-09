@@ -1,7 +1,7 @@
 {
   "name": "saral-system",
   "version": "1.0.0",
-  "description": "SARAL Disaster Management System with Real-time Communication",
+  "description": "Saral: Smart Alert and Resilient Aid Layer Disaster Management System with Real-time Communication",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

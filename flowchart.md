@@ -1,4 +1,4 @@
-# Project Flowchart - SARAL System
+# Project Flowchart - Saral: Smart Alert and Resilient Aid Layer
 
 This flowchart illustrates the complete interaction flow between the **Citizen App** and the **Command Center**, detailing every button action, message transmission, and resulting UI update.
 
